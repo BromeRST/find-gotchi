@@ -1,0 +1,29 @@
+fragment AavegotchiInfo on Aavegotchi {
+  id
+  name
+}
+
+fragment ItemTypeInfo on ItemType {
+  name
+}
+
+query GetAavegotchis(
+  $first: Int
+  $orderBy: Aavegotchi_orderBy
+  $orderDirection: OrderDirection
+  $where: Aavegotchi_filter
+) {
+  aavegotchis(first: $first, orderBy: $orderBy, orderDirection: $orderDirection, where: $where) {
+    ...AavegotchiInfo
+  }
+}
+
+query GetItemType($id: ID!) {
+  itemType(id: $id) {
+    owners(first: 1000, orderBy: balance, orderDirection: desc) {
+      owner
+      balance
+    }
+    ...ItemTypeInfo
+  }
+}
