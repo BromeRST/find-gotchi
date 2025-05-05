@@ -25,7 +25,7 @@ const CONFIG = {
 // Read the gotchi metadata JSON file
 const readGotchiData = (): GotchisData => {
   try {
-    const filePath = path.resolve(process.cwd(), '../../lib/aavegotchiMetadata.json');
+    const filePath = path.resolve(process.cwd(), './lib/aavegotchiMetadata.json');
     log.info(`Looking for metadata file at: ${filePath}`);
     if (!fs.existsSync(filePath)) {
       // Try another path if the first one doesn't exist
@@ -43,7 +43,7 @@ const readGotchiData = (): GotchisData => {
     const data = fs.readFileSync(filePath, 'utf8');
     return JSON.parse(data);
   } catch (error) {
-    console.error('Error reading file:', error);
+    log.error(`Error reading file: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
   }
 };
@@ -75,7 +75,7 @@ async function runChecksForItem(itemId: number): Promise<ErrorResult | null> {
 
     // Skip item ID 0 (The Void) or invalid IDs
     if (itemId === 0 || !itemTypes[itemId]) {
-      log.info(`Skipping item ID ${itemId} (not a valid item)`);
+      log.warning(`Skipping item ID ${itemId} (not a valid item)`);
       return null;
     }
 
@@ -93,8 +93,10 @@ async function runChecksForItem(itemId: number): Promise<ErrorResult | null> {
 
     // Check 0: Diamond balance should match item max quantity
     const check0Result = Number(ownersTotalBalance) === itemType.maxQuantity;
-    log.info(
-      `Check 0: Owners total balance (${ownersTotalBalance}) ${check0Result ? '===' : '!=='} item max quantity (${itemType.maxQuantity})`
+    log.check(
+      'Check 0',
+      check0Result,
+      `Owners total balance (${ownersTotalBalance}) ${check0Result ? '===' : '!=='} item max quantity (${itemType.maxQuantity})`
     );
 
     if (!check0Result) {
@@ -112,12 +114,14 @@ async function runChecksForItem(itemId: number): Promise<ErrorResult | null> {
 
     // Check 1: aavegotchiDiamond balance === aavegotchis length
     const check1Result = Number(aavegotchiDiamondBalance) === aavegotchisWithDressedItem;
-    log.info(
-      `Check 1: Diamond balance (${aavegotchiDiamondBalance}) ${check1Result ? '===' : '!=='} aavegotchis with dressed item (${aavegotchisWithDressedItem})`
+    log.check(
+      'Check 1',
+      check1Result,
+      `Diamond balance (${aavegotchiDiamondBalance}) ${check1Result ? '===' : '!=='} aavegotchis with dressed item (${aavegotchisWithDressedItem})`
     );
 
     if (check1Result) {
-      log.info(`All checks passed for item ${itemId} (${itemType.name})`);
+      log.success(`All checks passed for item ${itemId} (${itemType.name})`);
       return null;
     }
 
@@ -128,13 +132,16 @@ async function runChecksForItem(itemId: number): Promise<ErrorResult | null> {
     // Check 2: aavegotchi diamond balance === aavegotchis length + balanceReallyOwnedFromDiamond
     const check2Sum = aavegotchisWithDressedItem + Number(balanceReallyOwnedFromDiamond);
     const check2Result = Number(aavegotchiDiamondBalance) === check2Sum;
-    log.info(
-      `Check 2: Diamond balance (${aavegotchiDiamondBalance}) ${check2Result ? '===' : '!=='} ` +
-        `aavegotchis with dressed item (${aavegotchisWithDressedItem}) + balance really owned from Diamond (${balanceReallyOwnedFromDiamond})`
+    log.check(
+      'Check 2',
+      check2Result,
+      `Diamond balance (${aavegotchiDiamondBalance}) ${check2Result ? '===' : '!=='} ` +
+        `aavegotchis with dressed item (${aavegotchisWithDressedItem}) + ` +
+        `balance really owned from Diamond (${balanceReallyOwnedFromDiamond})`
     );
 
     if (check2Result) {
-      log.info(`Checks passed for item ${itemId} (${itemType.name}) at check 2`);
+      log.success(`Checks passed for item ${itemId} (${itemType.name}) at check 2`);
       return null;
     }
 
@@ -152,15 +159,17 @@ async function runChecksForItem(itemId: number): Promise<ErrorResult | null> {
         Number(balanceReallyOwnedFromDiamond) +
         countGotchisWithItemNotEquipped;
       const check3Result = Number(aavegotchiDiamondBalance) === check3Sum;
-      log.info(
-        `Check 3: Diamond balance (${aavegotchiDiamondBalance}) ${check3Result ? '===' : '!=='} ` +
+      log.check(
+        'Check 3',
+        check3Result,
+        `Diamond balance (${aavegotchiDiamondBalance}) ${check3Result ? '===' : '!=='} ` +
           `aavegotchis with dressed item (${aavegotchisWithDressedItem}) + ` +
           `balance really owned from Diamond (${balanceReallyOwnedFromDiamond}) + ` +
           `gotchis with item in pocket (${countGotchisWithItemNotEquipped})`
       );
 
       if (check3Result) {
-        log.info(`Checks passed for item ${itemId} (${itemType.name}) at check 3`);
+        log.success(`Checks passed for item ${itemId} (${itemType.name}) at check 3`);
         return null;
       }
 
@@ -183,7 +192,7 @@ async function runChecksForItem(itemId: number): Promise<ErrorResult | null> {
         message: `Diamond balance (${aavegotchiDiamondBalance}) !== aavegotchis with dressed item (${aavegotchisWithDressedItem}) + balance really owned from Diamond (${balanceReallyOwnedFromDiamond}) + gotchis with item in pocket (${countGotchisWithItemNotEquipped})`,
       };
     } catch (error) {
-      log.info(`Error during Check 3: ${error instanceof Error ? error.message : String(error)}`);
+      log.error(`Error during Check 3: ${error instanceof Error ? error.message : String(error)}`);
       // Fall back to check2 error if check3 fails due to file access or other issues
       return {
         itemId,
@@ -203,7 +212,7 @@ async function runChecksForItem(itemId: number): Promise<ErrorResult | null> {
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    log.info(`Error checking item ID ${itemId}: ${errorMessage}`);
+    log.error(`Error checking item ID ${itemId}: ${errorMessage}`);
 
     return {
       itemId,
@@ -231,14 +240,15 @@ async function processBatch(
       const result = await runChecksForItem(itemId);
       if (result) {
         localErrors.push(result);
-        log.info(`Error found for item ${itemId} (${result.itemName}): ${result.message}`);
+        log.error(`Error found for item ${itemId} (${result.itemName}): ${result.message}`);
 
         // Write to file as we go to prevent data loss in case of a crash
         fs.writeFileSync(outputFilePath, JSON.stringify(localErrors, null, 2));
+        log.info(`Updated error report at ${outputFilePath}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      log.info(`Failed to check item ${itemId}: ${errorMessage}`);
+      log.error(`Failed to check item ${itemId}: ${errorMessage}`);
     }
 
     // Add a small delay between items in a batch (if not the last item)
@@ -262,7 +272,7 @@ async function main() {
   if (specificItemId !== null) {
     // Check a specific item ID
     if (isNaN(specificItemId) || !itemTypes[specificItemId]) {
-      log.info(`Invalid item ID: ${args[0]}`);
+      log.error(`Invalid item ID: ${args[0]}`);
       process.exit(1);
     }
 
@@ -307,7 +317,11 @@ async function main() {
     }
   }
 
-  log.info(`Check completed. ${errors.length} errors found.`);
+  if (errors.length > 0) {
+    log.error(`Check completed with ${errors.length} errors found.`);
+  } else {
+    log.success(`Check completed. No errors found!`);
+  }
   log.info(`Error report written to ${outputFilePath}`);
 }
 
@@ -315,13 +329,13 @@ async function main() {
 function setupProcessHandlers() {
   // Handle Ctrl+C gracefully
   process.on('SIGINT', () => {
-    log.info('\nProcess interrupted. Exiting gracefully...');
+    log.warning('\nProcess interrupted. Exiting gracefully...');
     process.exit(0);
   });
 
   // Handle unhandled rejections
   process.on('unhandledRejection', (reason, promise) => {
-    log.info(`Unhandled Rejection at: ${promise}, reason: ${reason}`);
+    log.error(`Unhandled Rejection at: ${promise}, reason: ${reason}`);
   });
 }
 
@@ -329,6 +343,6 @@ function setupProcessHandlers() {
 setupProcessHandlers();
 main().catch(error => {
   const errorMessage = error instanceof Error ? error.message : String(error);
-  log.info(`Error in main execution: ${errorMessage}`);
+  log.error(`Error in main execution: ${errorMessage}`);
   process.exit(1);
 });
