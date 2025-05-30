@@ -1,6 +1,9 @@
 fragment AavegotchiInfo on Aavegotchi {
   id
   name
+  createdAt
+  historicalPrices
+  timesTraded
 }
 
 fragment ItemTypeInfo on ItemType {
@@ -25,5 +28,57 @@ query GetItemType($id: ID!) {
       balance
     }
     ...ItemTypeInfo
+  }
+}
+
+query GetAavegotchisPaginated(
+  $first: Int!
+  $skip: Int!
+  $orderBy: Aavegotchi_orderBy
+  $orderDirection: OrderDirection
+) {
+  aavegotchis(first: $first, skip: $skip, orderBy: $orderBy, orderDirection: $orderDirection) {
+    id
+    name
+    createdAt
+    historicalPrices
+    timesTraded
+    activeListing
+  }
+}
+
+query GetPortalsPaginated(
+  $first: Int!
+  $skip: Int!
+  $orderBy: Portal_orderBy
+  $orderDirection: OrderDirection
+) {
+  portals(first: $first, skip: $skip, orderBy: $orderBy, orderDirection: $orderDirection) {
+    id
+    gotchiId
+    buyer {
+      id
+    }
+    hauntId
+    owner {
+      id
+    }
+    options(first: 10) {
+      id
+      portalOptionId
+      randomNumber
+      numericTraits
+      collateralType
+      minimumStake
+      baseRarityScore
+    }
+    status
+    boughtAt
+    openedAt
+    claimedAt
+    claimedTime
+    timesTraded
+    historicalPrices
+    activeListing
   }
 }

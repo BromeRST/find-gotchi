@@ -9,7 +9,9 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,graphql,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,graphql,json}\"",
     "generate-config": "ts-node lib/generateConfig.ts",
-    "postinstall": "husky install && yarn generate-config && yarn graphclient build"
+    "postinstall": "husky install && yarn generate-config && yarn graphclient build",
+    "fetch-aavegotchis": "ts-node scripts/fetchAavegotchis.ts",
+    "fetch-portals": "ts-node scripts/fetchPortals.ts"
   },
   "dependencies": {
     "@graphprotocol/client-cli": "^3.0.7",
