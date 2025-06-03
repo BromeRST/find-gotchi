@@ -11,10 +11,13 @@
     "generate-config": "ts-node lib/generateConfig.ts",
     "postinstall": "husky install && yarn generate-config && yarn graphclient build",
     "fetch-aavegotchis": "ts-node scripts/fetchAavegotchis.ts",
-    "fetch-portals": "ts-node scripts/fetchPortals.ts"
+    "fetch-portals": "ts-node scripts/fetchPortals.ts",
+    "fetch-tiles": "ts-node scripts/fetchTiles.ts",
+    "fetch-installations": "ts-node scripts/fetchInstallations.ts"
   },
   "dependencies": {
     "@graphprotocol/client-cli": "^3.0.7",
+    "@graphql-mesh/transform-rename": "^0.105.4",
     "chalk": "^4.1.2",
     "dotenv": "^16.5.0",
     "ethers": "^6.13.7",

@@ -17,7 +17,22 @@ const configContent = `sources:
     handler:
       graphql:
         endpoint: >-
-          https://subgraph.satsuma-prod.com/${SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/version/matic-add-owners-to-wearables-6/api
+          https://subgraph.satsuma-prod.com/${SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/api
+
+  - name: gotchiverse-matic
+    handler:
+      graphql:
+        endpoint: >-
+          https://subgraph.satsuma-prod.com/${SUBGRAPH_KEY}/aavegotchi/gotchiverse-matic/api
+    transforms:
+      - rename:
+          renames:
+            - from:
+                type: Parcel
+                field: owner
+              to:
+                type: Parcel
+                field: ownerAddress
 
 documents:
   - ./src/queries/*.graphql

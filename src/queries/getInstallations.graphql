@@ -1,0 +1,19 @@
+fragment InstallationInfo on Installation {
+  id
+  type {
+    id
+  }
+  x
+  y
+  equipped
+  parcel {
+    id
+  }
+  owner
+}
+
+query GetInstallationsPaginated($first: Int!, $skip: Int!) {
+  installations(first: $first, skip: $skip, where: { equipped: true }) {
+    ...InstallationInfo
+  }
+}

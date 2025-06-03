@@ -21,16 +21,6 @@ query GetAavegotchis(
   }
 }
 
-query GetItemType($id: ID!) {
-  itemType(id: $id) {
-    owners(first: 1000, orderBy: balance, orderDirection: desc) {
-      owner
-      balance
-    }
-    ...ItemTypeInfo
-  }
-}
-
 query GetAavegotchisPaginated(
   $first: Int!
   $skip: Int!

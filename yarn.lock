@@ -937,6 +937,19 @@
     lodash.get "4.4.2"
     tslib "^2.4.0"
 
+"@graphql-mesh/transform-rename@^0.105.4":
+  version "0.105.4"
+  resolved "https://registry.yarnpkg.com/@graphql-mesh/transform-rename/-/transform-rename-0.105.4.tgz#1b8fb9e39e7b20899779e59497ae1dad79d2b011"
+  integrity sha512-OmUS5tQOGwFXkxzs5qmyaCRsgRlyVA0vEgr/48f7NYWc7eEMfXVLEhVB3e9KWCnGPVpz/9DgVJd8GXQnsgIdUA==
+  dependencies:
+    "@graphql-mesh/types" "^0.104.3"
+    "@graphql-mesh/utils" "^0.104.3"
+    "@graphql-tools/delegate" "^10.0.28"
+    "@graphql-tools/utils" "^10.8.0"
+    "@graphql-tools/wrap" "^10.0.28"
+    graphql-scalars "^1.22.4"
+    tslib "^2.4.0"
+
 "@graphql-mesh/transform-type-merging@^0.102.0":
   version "0.102.13"
   resolved "https://registry.yarnpkg.com/@graphql-mesh/transform-type-merging/-/transform-type-merging-0.102.13.tgz#348e051537824175fff56f6340dcc63f58ba65fd"
@@ -2490,6 +2503,13 @@ graphql-jit@0.8.7, graphql-jit@^0.8.7:
     lodash.memoize "^4.1.2"
     lodash.merge "4.6.2"
     lodash.mergewith "4.6.2"
+
+graphql-scalars@^1.22.4:
+  version "1.24.2"
+  resolved "https://registry.yarnpkg.com/graphql-scalars/-/graphql-scalars-1.24.2.tgz#3c1a7aba806a72532566ee482b7480476b49be65"
+  integrity sha512-FoZ11yxIauEnH0E5rCUkhDXHVn/A6BBfovJdimRZCQlFCl+h7aVvarKmI15zG4VtQunmCDdqdtNs6ixThy3uAg==
+  dependencies:
+    tslib "^2.5.0"
 
 graphql-tag@^2.11.0:
   version "2.12.6"

@@ -1,0 +1,19 @@
+fragment TileInfo on Tile {
+  id
+  equipped
+  x
+  y
+  parcel {
+    id
+  }
+  owner
+  type {
+    id
+  }
+}
+
+query GetTilesPaginated($first: Int!, $skip: Int!) {
+  tiles(first: $first, skip: $skip, where: { equipped: true }) {
+    ...TileInfo
+  }
+}
