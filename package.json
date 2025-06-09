@@ -13,7 +13,8 @@
     "fetch-aavegotchis": "ts-node scripts/fetchAavegotchis.ts",
     "fetch-portals": "ts-node scripts/fetchPortals.ts",
     "fetch-tiles": "ts-node scripts/fetchTiles.ts",
-    "fetch-installations": "ts-node scripts/fetchInstallations.ts"
+    "fetch-installations": "ts-node scripts/fetchInstallations.ts",
+    "compare-svgs": "ts-node scripts/itemSvgs/compareSvgResults.ts"
   },
   "dependencies": {
     "@graphprotocol/client-cli": "^3.0.7",
