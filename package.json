@@ -14,7 +14,8 @@
     "fetch-portals": "ts-node scripts/fetchPortals.ts",
     "fetch-tiles": "ts-node scripts/fetchTiles.ts",
     "fetch-installations": "ts-node scripts/fetchInstallations.ts",
-    "compare-svgs": "ts-node scripts/itemSvgs/compareSvgResults.ts"
+    "compare-svgs": "ts-node scripts/itemSvgs/compareSvgResults.ts",
+    "compare-user-balances": "ts-node scripts/userBalances/compareUserBalances.ts"
   },
   "dependencies": {
     "@graphprotocol/client-cli": "^3.0.7",
@@ -23,6 +24,7 @@
     "dotenv": "^16.5.0",
     "ethers": "^6.13.7",
     "graphql": "^16.8.1",
+    "graphql-request": "^7.2.0",
     "husky": "^8.0.3"
   },
   "devDependencies": {
