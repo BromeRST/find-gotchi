@@ -60,39 +60,35 @@ interface UserComparison {
 // Configuration - these will need to be provided
 const config = {
   subgraph1Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/api`,
-  subgraph2Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-testing-contract-28/api`,
-  blockNumber1: 72018494,
-  blockNumber2: 27090390,
+  subgraph2Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-testing-contract-36/api`,
+  blockNumber1: 72930920,
+  blockNumber2: 27271903,
   batchSize: 1000,
 };
 
-const GOTCHIS_QUERY = `
-      gotchisOriginalOwned(first: 2000) {
-        id
-      }
-`;
-
-const ADD_GOTCHIS_QUERY = false;
-
-const USERS_QUERY = `
-  query GetUsers($first: Int!, $skip: Int!, $block: Block_height) {
-    users(first: $first, skip: $skip, block: $block) {
-      id
-      ${ADD_GOTCHIS_QUERY ? GOTCHIS_QUERY : ''}
-      portalsOwned(first: 2000, where: { claimedAt: null }) {
-        id
+const otherQueries = `
+      fakeGotchiNFTTokens(first: 2000) {
+        identifier
       }
       parcelsOwned(first: 2000) {
         id
         parcelHash
       }
-      fakeGotchiCardBalances(first: 2000) {
+`;
+
+const useOtherQueries = false;
+
+const USERS_QUERY = `
+  query GetUsers($first: Int!, $skip: Int!, $block: Block_height) {
+    users(first: $first, skip: $skip, block: $block) {
+      id
+      gotchisOriginalOwned(first: 2000) {
         id
-        value
       }
-      fakeGotchiNFTTokens(first: 2000) {
-        identifier
+      portalsOwned(first: 2000, where: { claimedAt: null }) {
+        id
       }
+      ${useOtherQueries ? otherQueries : ''}
     }
   }
 `;
