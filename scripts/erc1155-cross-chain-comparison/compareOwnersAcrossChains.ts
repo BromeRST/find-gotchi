@@ -7,7 +7,7 @@ import { baseSepoliaAddresses, polygonAddresses } from './chainAddresses';
 // Load environment variables from .env file
 dotenv.config();
 
-// Types for Alchemy NFT API responses
+// Types for Alchemy NFT API responses (ERC1155 focused)
 interface TokenBalance {
   tokenId: string;
   balance: number;
@@ -70,36 +70,76 @@ interface ComparisonResult {
   };
 }
 
-// Configuration - Single API key for all chains
-const COLLECTION_CONFIG: CollectionConfig = {
-  name: 'Installations',
-  apiKey: process.env.ALCHEMY_API_KEY || '',
-  chains: [
-    {
-      name: 'Polygon',
-      alchemyEndpoint: 'https://polygon-mainnet.g.alchemy.com/nft/v3',
-      contractAddress: polygonAddresses.installationsDiamond,
-      maxRequests: 100,
-      requestDelay: 100,
-      enabled: true,
-      blockNumber: '72386800',
-      // blockNumber: '56789012', // Optional: specific block number (decimal)
-      // blockNumber: '0x3618140', // Optional: specific block number (hex)
-      // blockNumber: 'finalized', // Optional: block tag
-    },
-    {
-      name: 'BaseSepolia',
-      alchemyEndpoint: 'https://base-sepolia.g.alchemy.com/nft/v3',
-      contractAddress: baseSepoliaAddresses.installationsDiamond,
-      maxRequests: 100,
-      requestDelay: 100,
-      enabled: true,
-      // blockNumber: '12345678', // Optional: specific block number (decimal)
-      // blockNumber: '0xbc614e', // Optional: specific block number (hex)
-      // blockNumber: 'latest',   // Optional: block tag
-    },
-  ],
-};
+// Configuration - Can be overridden by environment variables for multi-collection runs
+function getCollectionConfig(): CollectionConfig {
+  // Check if running from multi-collection script (has environment variables set)
+  if (
+    process.env.COLLECTION_NAME &&
+    process.env.POLYGON_CONTRACT &&
+    process.env.BASE_SEPOLIA_CONTRACT
+  ) {
+    const config: CollectionConfig = {
+      name: process.env.COLLECTION_NAME,
+      apiKey: process.env.ALCHEMY_API_KEY || '',
+      chains: [
+        {
+          name: 'Polygon',
+          alchemyEndpoint: 'https://polygon-mainnet.g.alchemy.com/nft/v3',
+          contractAddress: process.env.POLYGON_CONTRACT,
+          maxRequests: 100,
+          requestDelay: 100,
+          enabled: true,
+          blockNumber: process.env.POLYGON_BLOCK || undefined,
+        },
+        {
+          name: 'BaseSepolia',
+          alchemyEndpoint: 'https://base-sepolia.g.alchemy.com/nft/v3',
+          contractAddress: process.env.BASE_SEPOLIA_CONTRACT,
+          maxRequests: 100,
+          requestDelay: 100,
+          enabled: true,
+          blockNumber: process.env.BASE_SEPOLIA_BLOCK || undefined,
+        },
+      ],
+    };
+
+    // Remove empty block numbers
+    config.chains.forEach(chain => {
+      if (chain.blockNumber === '') {
+        delete chain.blockNumber;
+      }
+    });
+
+    return config;
+  }
+
+  // Default configuration for single collection runs
+  return {
+    name: 'Installations',
+    apiKey: process.env.ALCHEMY_API_KEY || '',
+    chains: [
+      {
+        name: 'Polygon',
+        alchemyEndpoint: 'https://polygon-mainnet.g.alchemy.com/nft/v3',
+        contractAddress: polygonAddresses.installationsDiamond,
+        maxRequests: 100,
+        requestDelay: 100,
+        enabled: true,
+        blockNumber: '72386800',
+      },
+      {
+        name: 'BaseSepolia',
+        alchemyEndpoint: 'https://base-sepolia.g.alchemy.com/nft/v3',
+        contractAddress: baseSepoliaAddresses.installationsDiamond,
+        maxRequests: 100,
+        requestDelay: 100,
+        enabled: true,
+      },
+    ],
+  };
+}
+
+const COLLECTION_CONFIG = getCollectionConfig();
 
 async function fetchOwnersForContract(
   config: ChainConfig,
@@ -359,7 +399,7 @@ function compareOwnershipData(
 }
 
 function printResults(result: ComparisonResult): void {
-  console.log(chalk.cyan.bold(`\n🔍 CROSS-CHAIN OWNERSHIP COMPARISON RESULTS`));
+  console.log(chalk.cyan.bold(`\n🔍 ERC1155 CROSS-CHAIN COMPARISON RESULTS`));
   console.log(chalk.magenta.bold(`📦 Collection: ${result.collectionName}`));
   console.log(
     chalk.gray(`🕒 Analysis completed at: ${new Date(result.timestamp).toLocaleString()}`)
@@ -472,7 +512,7 @@ async function saveResults(result: ComparisonResult): Promise<void> {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const sanitizedCollectionName = result.collectionName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
   const filename = `${sanitizedCollectionName}-comparison-${timestamp}.json`;
-  const filePath = path.join(process.cwd(), 'data/results', filename);
+  const filePath = path.join(process.cwd(), 'data/results/erc1155', filename);
 
   try {
     // Ensure data directory exists
@@ -487,7 +527,7 @@ async function saveResults(result: ComparisonResult): Promise<void> {
 
 async function main(): Promise<void> {
   try {
-    console.log(chalk.cyan.bold('🚀 Starting Cross-Chain NFT Ownership Comparison\n'));
+    console.log(chalk.cyan.bold('🚀 Starting ERC1155 Cross-Chain Comparison\n'));
 
     // Validate configuration
     if (!COLLECTION_CONFIG.apiKey) {

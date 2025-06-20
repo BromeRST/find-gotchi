@@ -1,13 +1,14 @@
-# Cross-Chain NFT Ownership Comparison
+# ERC1155 Cross-Chain Comparison
 
-This script compares NFT owners and token balances across different blockchain networks using the [Alchemy NFT API](https://www.alchemy.com/docs/data/nft-api/api-reference/nft-ownership-endpoints/get-owners-for-contract-v-3). It identifies discrepancies in ownership data between chains and provides detailed analysis reports.
+This script compares ERC1155 token owners and balances across different blockchain networks using the [Alchemy NFT API](https://www.alchemy.com/docs/data/nft-api/api-reference/nft-ownership-endpoints/get-owners-for-contract-v-3). It identifies discrepancies in ownership data between chains and provides detailed analysis reports for ERC1155 tokens with individual token ID balances.
 
 ## Features
 
+- **ERC1155 Focus**: Specifically designed for ERC1155 tokens with token balance tracking
 - **Multi-chain support**: Compare ownership across Ethereum, Polygon, Arbitrum, and other Alchemy-supported networks
 - **Historical snapshots**: Query ownership data at specific block heights for time-based analysis
-- **Token-level analysis**: Compare both total balances and individual token ID balances
-- **Discrepancy detection**: Automatically identifies owners with inconsistent balances across chains
+- **Token-level analysis**: Compare both total balances and individual token ID balances for each owner
+- **Discrepancy detection**: Automatically identifies owners with inconsistent ERC1155 balances across chains
 - **Comprehensive reporting**: Generates detailed console output and JSON reports
 - **Pagination handling**: Automatically handles large datasets with pagination
 - **Rate limiting**: Built-in delays to respect API rate limits
@@ -28,14 +29,16 @@ Create a `.env` file in the project root with your configuration:
 ```env
 # Single Alchemy API Key (works across all chains)
 ALCHEMY_API_KEY=your_alchemy_api_key_here
-
-# Collection Name for reporting
-COLLECTION_NAME=Your NFT Collection Name
 ```
 
 ### 2. Contract Addresses & Block Heights
 
-Contract addresses are hardcoded in the script configuration. To modify them, edit the `COLLECTION_CONFIG.chains` array in `scripts/cross-chain-comparison/compareOwnersAcrossChains.ts`:
+Contract addresses and collection names are hardcoded in the scripts:
+
+**For single collection runs**: Edit the default configuration in `compareOwnersAcrossChains.ts`
+**For multi-collection runs**: Edit the `COLLECTIONS` array in `runAllCollections.ts`
+
+Example configuration in `compareOwnersAcrossChains.ts`:
 
 ```typescript
 chains: [
@@ -79,14 +82,40 @@ yarn install
 
 ## Usage
 
-### Run the Comparison
+### Multi-Collection ERC1155 Comparison (Recommended)
+
+The easiest way to compare all ERC1155 collections is using the orchestrator script:
 
 ```bash
-# Using npm script
-yarn compare-owners-cross-chain
+yarn compare-all-erc1155-collections
+```
 
-# Or directly with ts-node
-npx ts-node scripts/compareOwnersAcrossChains.ts
+This will automatically:
+
+- Run ERC1155 comparisons for all configured collections:
+  - **Installations** - Building components for the Gotchiverse (ERC1155)
+  - **Tiles** - Land tiles for realm decoration (ERC1155)
+  - **FakeCards** - Trading card variants (ERC1155)
+  - **Forge** - Crafting system contracts (ERC1155)
+- Use the correct ERC1155 contract addresses for each collection
+- Save each result to a separate JSON file (e.g., `installations-comparison-2024-01-15.json`)
+- Provide a comprehensive summary at the end
+- Handle rate limiting between collections (5-second delays)
+
+### Single ERC1155 Collection Comparison
+
+For testing or running specific ERC1155 collections:
+
+```bash
+# Single ERC1155 collection comparison
+yarn compare-erc1155-cross-chain
+
+# Run all ERC1155 collections automatically
+yarn compare-all-erc1155-collections
+
+# Direct execution
+npx ts-node scripts/erc1155-cross-chain-comparison/compareOwnersAcrossChains.ts
+npx ts-node scripts/erc1155-cross-chain-comparison/runAllCollections.ts
 ```
 
 ### Configuration
@@ -242,6 +271,8 @@ interface ComparisonResult {
 
 ### Example: Comparing at Specific Blocks
 
+For single collection runs, modify the configuration in `compareOwnersAcrossChains.ts`:
+
 ```typescript
 chains: [
   {
@@ -259,6 +290,20 @@ chains: [
     enabled: true,
   },
 ];
+```
+
+For multi-collection runs, edit the `COLLECTIONS` array in `runAllCollections.ts`:
+
+```typescript
+{
+  name: 'Installations',
+  baseSepoliaAddress: baseSepoliaAddresses.installationsDiamond,
+  polygonAddress: polygonAddresses.installationsDiamond,
+  blockNumber: {
+    polygon: '72386800',     // Specific block for Polygon
+    baseSepolia: '12345678', // Specific block for BaseSepolia
+  },
+},
 ```
 
 ## Supported Networks
