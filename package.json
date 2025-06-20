@@ -15,7 +15,8 @@
     "fetch-tiles": "ts-node scripts/fetchTiles.ts",
     "fetch-installations": "ts-node scripts/fetchInstallations.ts",
     "compare-svgs": "ts-node scripts/itemSvgs/compareSvgResults.ts",
-    "compare-user-balances": "ts-node scripts/userBalances/compareUserBalances.ts"
+    "compare-user-balances": "ts-node scripts/userBalances/compareUserBalances.ts",
+    "compare-owners-cross-chain": "ts-node scripts/cross-chain-comparison/compareOwnersAcrossChains.ts"
   },
   "dependencies": {
     "@graphprotocol/client-cli": "^3.0.7",
