@@ -28,26 +28,26 @@ const COLLECTIONS: CollectionDefinition[] = [
       // baseSepolia: '12345678', // Uncomment and set if needed
     },
   },
-  {
-    name: 'Tiles',
-    baseSepoliaAddress: baseSepoliaAddresses.tilesDiamond,
-    polygonAddress: polygonAddresses.tilesDiamond,
-  },
+  // {
+  //   name: 'Tiles',
+  //   baseSepoliaAddress: baseSepoliaAddresses.tilesDiamond,
+  //   polygonAddress: polygonAddresses.tilesDiamond,
+  // },
   //   {
   //     name: 'Wearables',
   //     baseSepoliaAddress: baseSepoliaAddresses.wearableDiamond,
   //     polygonAddress: polygonAddresses.wearableDiamond,
   //   },
-  {
-    name: 'FakeCards',
-    baseSepoliaAddress: baseSepoliaAddresses.fakeCardsDiamond,
-    polygonAddress: polygonAddresses.fakeCardsDiamond,
-  },
-  {
-    name: 'Forge',
-    baseSepoliaAddress: baseSepoliaAddresses.forgeDiamond,
-    polygonAddress: polygonAddresses.forgeDiamond,
-  },
+  // {
+  //   name: 'FakeCards',
+  //   baseSepoliaAddress: baseSepoliaAddresses.fakeCardsDiamond,
+  //   polygonAddress: polygonAddresses.fakeCardsDiamond,
+  // },
+  // {
+  //   name: 'Forge',
+  //   baseSepoliaAddress: baseSepoliaAddresses.forgeDiamond,
+  //   polygonAddress: polygonAddresses.forgeDiamond,
+  // },
 ];
 
 // Function to run comparison for a single collection

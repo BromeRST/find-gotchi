@@ -1,77 +1,58 @@
 # ERC1155 Cross-Chain Comparison
 
-This script compares ERC1155 token owners and balances across different blockchain networks using the [Alchemy NFT API](https://www.alchemy.com/docs/data/nft-api/api-reference/nft-ownership-endpoints/get-owners-for-contract-v-3). It identifies discrepancies in ownership data between chains and provides detailed analysis reports for ERC1155 tokens with individual token ID balances.
+This script compares ERC1155 token owners and balances across different blockchain networks using the [Alchemy NFT API](https://www.alchemy.com/docs/data/nft-api/api-reference/nft-ownership-endpoints/get-owners-for-contract-v-3). It identifies discrepancies in ownership data between chains, analyzes transfer activity to understand causes, and provides comprehensive analysis reports.
 
 ## Features
 
-- **ERC1155 Focus**: Specifically designed for ERC1155 tokens with token balance tracking
-- **Multi-chain support**: Compare ownership across Ethereum, Polygon, Arbitrum, and other Alchemy-supported networks
-- **Historical snapshots**: Query ownership data at specific block heights for time-based analysis
-- **Token-level analysis**: Compare both total balances and individual token ID balances for each owner
-- **Discrepancy detection**: Automatically identifies owners with inconsistent ERC1155 balances across chains
-- **Comprehensive reporting**: Generates detailed console output and JSON reports
-- **Pagination handling**: Automatically handles large datasets with pagination
-- **Rate limiting**: Built-in delays to respect API rate limits
-- **Error handling**: Graceful handling of API errors and network issues
+### Core Functionality
+
+- **ERC1155 Focus**: Specifically designed for ERC1155 tokens with individual token ID balance tracking
+- **Multi-chain Support**: Compare ownership across Polygon, Base Sepolia, and other Alchemy-supported networks
+- **Historical Snapshots**: Query ownership data at specific block heights for time-based analysis
+- **Token-level Analysis**: Compare both total balances and individual token ID balances for each owner
+
+### Advanced Analysis
+
+- **Transfer Activity Analysis**: Analyzes post-snapshot transfers to understand discrepancy causes
+- **Balance Adjustment**: Applies transfer data to adjust Polygon balances and test if timing explains discrepancies
+- **Effectiveness Measurement**: Calculates resolution rates to determine if transfers explain differences
+- **Contract Address Filtering**: Automatically excludes known contract addresses from ownership comparisons
+
+### Reporting & Output
+
+- **Comprehensive Console Output**: Detailed real-time analysis with color-coded results
+- **JSON Export**: Complete results saved to timestamped JSON files for further analysis
+- **Discrepancy Detection**: Identifies owners with inconsistent balances and chain-exclusive ownership
+- **Transfer Summaries**: Detailed transfer activity reports with block numbers and directions
+
+### Technical Features
+
+- **Pagination Handling**: Automatically handles large datasets with proper pagination
+- **Rate Limiting**: Built-in delays to respect API rate limits
+- **Error Handling**: Graceful handling of API errors and network issues
+- **Type Safety**: Full TypeScript implementation with comprehensive type definitions
 
 ## Prerequisites
 
-1. **Alchemy API Key**: You need one Alchemy API key that works across all chains
-2. **Collection Name**: A name for your NFT collection for reporting purposes
-3. **Environment Variables**: Configure your API key and collection name
+1. **Alchemy API Key**: Single API key that works across all chains
+2. **Node.js & TypeScript**: Runtime environment for the script
+3. **Environment Variables**: API key configuration
 
 ## Setup
 
 ### 1. Environment Variables
 
-Create a `.env` file in the project root with your configuration:
+Create a `.env` file in the project root:
 
 ```env
 # Single Alchemy API Key (works across all chains)
 ALCHEMY_API_KEY=your_alchemy_api_key_here
 ```
 
-### 2. Contract Addresses & Block Heights
-
-Contract addresses and collection names are hardcoded in the scripts:
-
-**For single collection runs**: Edit the default configuration in `compareOwnersAcrossChains.ts`
-**For multi-collection runs**: Edit the `COLLECTIONS` array in `runAllCollections.ts`
-
-Example configuration in `compareOwnersAcrossChains.ts`:
-
-```typescript
-chains: [
-  {
-    name: 'BaseSepolia',
-    alchemyEndpoint: 'https://base-sepolia.g.alchemy.com/nft/v3',
-    contractAddress: '0x86935f11c86623dec8a25696e1c19a8659cbf95d',
-    blockNumber: '12345678', // Optional: specific block number (decimal or hex)
-    // ... other config
-  },
-  {
-    name: 'Polygon',
-    alchemyEndpoint: 'https://polygon-mainnet.g.alchemy.com/nft/v3',
-    contractAddress: '0x86935f11c86623dec8a25696e1c19a8659cbf95d',
-    blockNumber: 'latest', // Optional: block tag (latest, earliest, finalized)
-    // ... other config
-  },
-];
-```
-
-#### Block Parameter Options
-
-The `blockNumber` field supports:
-
-- **Decimal block numbers**: `"15753215"`
-- **Hex block numbers**: `"0xf00f0f"`
-- **Block tags**: `"latest"`, `"earliest"`, `"finalized"`
-- **Omit for latest**: If not specified, uses the latest available block
-
 ### 2. Get Alchemy API Key
 
 1. Visit [Alchemy](https://www.alchemy.com/)
-2. Create an account and get a single API key that supports multiple networks
+2. Create an account and get an API key that supports multiple networks
 3. Add the API key to your `.env` file
 
 ### 3. Install Dependencies
@@ -82,148 +63,283 @@ yarn install
 
 ## Usage
 
-### Multi-Collection ERC1155 Comparison (Recommended)
-
-The easiest way to compare all ERC1155 collections is using the orchestrator script:
+### Single Collection Comparison
 
 ```bash
-yarn compare-all-erc1155-collections
-```
-
-This will automatically:
-
-- Run ERC1155 comparisons for all configured collections:
-  - **Installations** - Building components for the Gotchiverse (ERC1155)
-  - **Tiles** - Land tiles for realm decoration (ERC1155)
-  - **FakeCards** - Trading card variants (ERC1155)
-  - **Forge** - Crafting system contracts (ERC1155)
-- Use the correct ERC1155 contract addresses for each collection
-- Save each result to a separate JSON file (e.g., `installations-comparison-2024-01-15.json`)
-- Provide a comprehensive summary at the end
-- Handle rate limiting between collections (5-second delays)
-
-### Single ERC1155 Collection Comparison
-
-For testing or running specific ERC1155 collections:
-
-```bash
-# Single ERC1155 collection comparison
+# Run ERC1155 cross-chain comparison
 yarn compare-erc1155-cross-chain
 
-# Run all ERC1155 collections automatically
+# Or run directly
+npx ts-node scripts/erc1155-cross-chain-comparison/compareOwnersAcrossChains.ts
+```
+
+### Multi-Collection Comparison
+
+```bash
+# Run all configured collections
 yarn compare-all-erc1155-collections
 
-# Direct execution
-npx ts-node scripts/erc1155-cross-chain-comparison/compareOwnersAcrossChains.ts
+# Or run directly
 npx ts-node scripts/erc1155-cross-chain-comparison/runAllCollections.ts
 ```
 
-### Configuration
+## Configuration
 
-The script is configured via the `COLLECTION_CONFIG` object in `scripts/cross-chain-comparison/compareOwnersAcrossChains.ts`. You can:
-
-1. **Add more chains**: Add new chain configurations to support more networks
-2. **Modify endpoints**: Change Alchemy endpoints for different networks
-3. **Update contract addresses**: Set different contract addresses per chain via environment variables
-4. **Adjust rate limits**: Modify the delay between requests per chain
-5. **Enable/disable chains**: Control which chains are included in the comparison
-
-Example configuration for additional chains:
+The script uses hardcoded configuration in the `getCollectionConfig()` function. Current default setup:
 
 ```typescript
-{
-  name: 'World Chain',
-  alchemyEndpoint: 'https://worldchain-mainnet.g.alchemy.com/nft/v3',
-  contractAddress: process.env.WORLDCHAIN_CONTRACT_ADDRESS || '0x...',
-  maxRequests: 50,
-  requestDelay: 200,
-  enabled: !!process.env.WORLDCHAIN_CONTRACT_ADDRESS,
-},
+chains: [
+  {
+    name: 'Polygon',
+    alchemyEndpoint: 'https://polygon-mainnet.g.alchemy.com/nft/v3',
+    contractAddress: '0x19f870bd94a34b3adaa9caa439d333da18d6812a',
+    blockNumber: '72386800', // Specific snapshot block
+    maxRequests: 100,
+    requestDelay: 200,
+    enabled: true,
+  },
+  {
+    name: 'BaseSepolia',
+    alchemyEndpoint: 'https://base-sepolia.g.alchemy.com/nft/v3',
+    contractAddress: '0x5Aefdc5283B24EEa7b50FFBBf7FB8A2bD4537609',
+    blockNumber: 'latest',
+    maxRequests: 100,
+    requestDelay: 200,
+    enabled: true,
+  },
+],
+collectionName: 'Installations'
 ```
 
-## Output
+### Block Parameter Options
+
+The `blockNumber` field supports:
+
+- **Decimal numbers**: `"72386800"`
+- **Hex numbers**: `"0x45088f0"`
+- **Block tags**: `"latest"`, `"earliest"`, `"finalized"`
+- **Omit for latest**: If not specified, uses latest block
+
+## Analysis Process
+
+The script performs a comprehensive 6-step analysis:
+
+### 1. Data Fetching
+
+- Fetches all owners for each configured chain
+- Handles pagination automatically for large datasets
+- Filters out known contract addresses
+- Respects rate limits with configurable delays
+
+### 2. Ownership Comparison
+
+- Compares owners across all chains
+- Identifies chain-exclusive owners
+- Detects balance discrepancies at token level
+- Calculates summary statistics
+
+### 3. Transfer Analysis
+
+- Analyzes transfer activity after snapshot block
+- Fetches transfers for addresses with discrepancies
+- Filters for relevant token IDs only
+- Provides detailed transfer logs with block numbers
+
+### 4. Balance Adjustment
+
+- Applies post-snapshot transfers to Polygon balances
+- Adjusts balances based on RECEIVED/SENT transfers
+- Tracks which addresses had activity
+
+### 5. Effectiveness Analysis
+
+- Compares original vs adjusted discrepancies
+- Calculates resolution rate
+- Determines if timing explains differences
+
+### 6. Comprehensive Reporting
+
+- Console output with detailed analysis
+- JSON export for further processing
+- Summary statistics and effectiveness metrics
+
+## Output Examples
 
 ### Console Output
 
-The script provides detailed console output including:
-
-- **Summary statistics**: Total owners per chain, unique owners, discrepancies count
-- **Chain-exclusive owners**: Owners that exist only on specific chains
-- **Detailed discrepancies**: Top discrepancies with token-level analysis
-- **Progress indicators**: Real-time progress during data fetching
-
-### JSON Report
-
-Results are automatically saved to `data/cross-chain-comparison-[timestamp].json` with:
-
-- Complete analysis results
-- All discrepancies with detailed breakdowns
-- Summary statistics
-- Raw data for further analysis
-
-### Example Output
-
 ```
-🔍 CROSS-CHAIN OWNERSHIP COMPARISON RESULTS
-📦 Collection: Aavegotchi Collection
-🕒 Analysis completed at: 12/13/2024, 2:30:45 PM
+🔍 ERC1155 CROSS-CHAIN COMPARISON RESULTS
+📦 Collection: Installations
+🕒 Analysis completed at: 6/23/2025, 1:00:25 PM
 ================================================================================
 
 📊 SUMMARY:
-Collection: Aavegotchi Collection
-Chains compared: Ethereum, Polygon, Arbitrum
-Unique owners across all chains: 1,234
-Owners on Ethereum: 1,100
-Owners on Polygon: 1,200
-Owners on Arbitrum: 1,050
-Owners with discrepancies: 45
-Total token discrepancies: 123
+Collection: Installations
+Chains compared: Polygon, BaseSepolia
+Unique owners across all chains: 5864
+Owners on Polygon: 5862
+Owners on BaseSepolia: 5852
+Owners with discrepancies: 18
+Total token discrepancies: 79
 
 🏷️ CHAIN-EXCLUSIVE OWNERS:
-Only on Ethereum: 34 owners
-Only on Polygon: 56 owners
-✓ No chain-exclusive owners found
+Only on Polygon: 12 owners
+Only on BaseSepolia: 2 owners
 
-⚠️ DISCREPANCIES FOUND:
+📊 BALANCE DISCREPANCIES:
 
-1. 0x1234...abcd
-  Ethereum: 5 total tokens (3 different token IDs)
-  Polygon: 3 total tokens (2 different token IDs)
-  Arbitrum: 4 total tokens (3 different token IDs)
-  Token-level discrepancies:
-    Token 1001:
-      Ethereum: 2
-      Polygon: 1
-      Arbitrum: 2
+1. 0x6d8E193888C0a78f4F0be41d83C3bb486adca4f4
+  Polygon: 22 total tokens (4 different token IDs)
+  BaseSepolia: 16 total tokens (4 different token IDs)
+  Tokens with differences (4 total):
+    Token 65: Polygon: 2, BaseSepolia: 3
+    Token 83: Polygon: 10, BaseSepolia: 4
+    Token 101: Polygon: 5, BaseSepolia: 3
+    Token 119: Polygon: 5, BaseSepolia: 6
+```
+
+### Transfer Analysis Output
+
+```
+🔍 ANALYZING TRANSFER ACTIVITY FOR DISCREPANCIES
+📦 Collection: Installations
+🏗️ Contract: 0x19f870bd94a34b3adaa9caa439d333da18d6812a
+📊 Block reference: 72386800
+🔢 Addresses to analyze: 18
+
+[1/18] Checking transfers for 0x6d8E193888C0a78f4F0be41d83C3bb486adca4f4...
+  ✓ Found 30 relevant transfers out of 303 total for this address
+    RECEIVED in block 72643647: Token 101 from 0x0000000000000000000000000000000000000000
+    SENT in block 72643683: Token 101 to 0x1d0360bac7299c86ec8e99d0c1c9a95fefaf2a11
+```
+
+### Balance Adjustment Output
+
+```
+🔧 ADJUSTING POLYGON BALANCES WITH TRANSFER DATA
+📝 Adjusting balances for 0x6d8E193888C0a78f4F0be41d83C3bb486adca4f4:
+  Token 101: 5 → 7 (+2)
+📝 Adjusting balances for 0xfFea5a2cfAF1AaFbB87A1FE4eED5413DA45C30a0:
+  Token 101: 1 → 0 (-5)
+  Token 65: 9 → 17 (+8)
+
+📊 ADJUSTMENT EFFECTIVENESS ANALYSIS
+Original discrepancies: 18
+Adjusted discrepancies: 18
+Discrepancies resolved: 0
+Resolution rate: 0.0%
+```
+
+### JSON Export
+
+Results are saved to `data/results/erc1155/[collection]-comparison-[timestamp].json`:
+
+```json
+{
+  "collectionName": "Installations",
+  "timestamp": "2025-06-23T11:00:25.149Z",
+  "summary": {
+    "totalOwners": {
+      "Polygon": 5862,
+      "BaseSepolia": 5852
+    },
+    "uniqueOwners": 5864,
+    "ownersWithDiscrepancies": 18,
+    "tokenDiscrepancies": 79
+  },
+  "discrepancies": [
+    {
+      "ownerAddress": "0x6d8E193888C0a78f4F0be41d83C3bb486adca4f4",
+      "discrepancies": {
+        "tokenBalanceDiffs": [
+          {
+            "tokenId": "65",
+            "balances": {
+              "Polygon": 2,
+              "BaseSepolia": 3
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
 ```
 
 ## API Reference
 
-### Key Functions
+### Modular Architecture
 
-#### `fetchOwnersForContract(config: ChainConfig)`
+The script is organized into focused modules for maintainability:
 
-Fetches all owners for a specific contract on a chain, handling pagination automatically.
+#### **lib/fetchers.ts** - Data Fetching
 
-#### `compareOwnershipData(chainData)`
+- `fetchOwnersForContract()` - Fetches owners for a specific contract with pagination
+- `fetchAllChainData()` - Orchestrates data fetching across multiple chains
+- `fetchTransfersForContract()` - Fetches transfer data for analysis
 
-Analyzes ownership data across chains and identifies discrepancies.
+#### **lib/comparison.ts** - Analysis Logic
 
-#### `printResults(result: ComparisonResult)`
+- `compareOwnershipData()` - Core comparison algorithm between chains
+- `compareAdjustedBalances()` - Compares adjusted balances after transfer analysis
 
-Formats and displays results in the console.
+#### **lib/printers.ts** - Output Formatting
+
+- `printResults()` - Formats and displays main comparison results
+- `printTransferAnalysis()` - Formats transfer analysis output
+
+#### **lib/utils.ts** - Configuration & Utilities
+
+- `getCollectionConfig()` - Manages configuration for single/multi-collection runs
+- `analyzeTransfersForDiscrepancies()` - Analyzes post-snapshot transfer activity
+- `adjustBalancesWithTransfers()` - Applies transfers to adjust balances
+- `saveResults()` - JSON export functionality
 
 ### Types
 
+All types are defined in `types.ts`:
+
 ```typescript
+interface TokenBalance {
+  tokenId: string;
+  balance: number;
+}
+
+interface Owner {
+  ownerAddress: string;
+  tokenBalances: TokenBalance[];
+}
+
 interface ChainConfig {
   name: string;
   alchemyEndpoint: string;
   contractAddress: string;
-  apiKey: string;
+  blockNumber?: string;
+  maxRequests: number;
+  requestDelay: number;
+  enabled: boolean;
+}
+
+interface OwnerComparison {
+  ownerAddress: string;
+  discrepancies: {
+    tokenBalanceDiffs: Array<{
+      tokenId: string;
+      balances: { [chainName: string]: number };
+    }>;
+  };
+}
+
+interface TransferAnalysis {
+  address: string;
+  transfersFound: number;
+  relevantTransfers: NftTransfer[];
+  blockRange: { from: string; to: string };
 }
 
 interface ComparisonResult {
+  collectionName: string;
+  timestamp: string;
   summary: {
     totalOwners: { [chainName: string]: number };
     uniqueOwners: number;
@@ -231,110 +347,117 @@ interface ComparisonResult {
     tokenDiscrepancies: number;
   };
   discrepancies: OwnerComparison[];
-  detailedReport: {
-    ownersOnlyOnChain: { [chainName: string]: string[] };
-    completeMatches: OwnerComparison[];
-  };
+  adjustedComparison?: ComparisonResult;
 }
+```
+
+## Contract Address Filtering
+
+The script automatically filters out known contract addresses to avoid false positives:
+
+```typescript
+const CONTRACT_ADDRESSES = new Set([
+  '0x1d0360bac7299c86ec8e99d0c1c9a95fefaf2a11', // Realm Diamond
+  '0x19f870bd94a34b3adaa9caa439d333da18d6812a', // Installations Diamond
+  '0x9216c31d8146bcb3ea5a9162dc1702e8aedca355', // Tiles Diamond
+  // ... more contract addresses
+]);
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **API Rate Limits**: The script includes built-in delays, but you can increase them if needed
-2. **Large Datasets**: For contracts with >50,000 owners, the script uses pagination automatically
-3. **Network Errors**: The script will retry failed requests and continue with available data
-4. **Missing API Keys**: Chains without API keys are automatically skipped with warnings
+1. **API Rate Limits**: Increase `requestDelay` in chain configuration
+2. **Large Datasets**: Script handles pagination automatically
+3. **Network Errors**: Built-in retry logic with graceful degradation
+4. **Missing API Keys**: Check `.env` file configuration
+5. **Hex Display Issues**: Fixed - totals now display in decimal format
 
 ### Error Messages
 
-- `"ALCHEMY_API_KEY is required"`: Add your Alchemy API key to your `.env` file
-- `"At least 2 enabled chains are required"`: Enable more chains in the script configuration
-- `"HTTP 401: Unauthorized"`: Check your API key is correct
-- `"HTTP 429: Too Many Requests"`: Increase the delay between requests in the configuration
+- `"ALCHEMY_API_KEY is required"`: Add API key to `.env` file
+- `"HTTP 401: Unauthorized"`: Verify API key is correct
+- `"HTTP 429: Too Many Requests"`: Increase request delays
+- `"No enabled chains found"`: Check chain configuration
 
-## Performance Considerations
+### Performance Considerations
 
-- **Large contracts**: May take several minutes to fetch all ownership data
-- **Rate limits**: Alchemy has rate limits; the script includes delays to respect them
-- **Memory usage**: Large datasets are processed in memory; monitor usage for very large contracts
-
-## Historical Snapshot Comparisons
-
-### Use Cases for Block-Specific Queries
-
-1. **Airdrop Snapshots**: Compare ownership at specific blocks to ensure fair distribution
-2. **Migration Analysis**: Track ownership changes before and after contract migrations
-3. **Event-Based Analysis**: Compare states before/after significant events
-4. **Audit Trails**: Verify historical ownership data for compliance
-
-### Example: Comparing at Specific Blocks
-
-For single collection runs, modify the configuration in `compareOwnersAcrossChains.ts`:
-
-```typescript
-chains: [
-  {
-    name: 'BaseSepolia',
-    alchemyEndpoint: 'https://base-sepolia.g.alchemy.com/nft/v3',
-    contractAddress: baseSepoliaAddresses.installationsDiamond,
-    blockNumber: '12345678', // Snapshot at specific block
-    enabled: true,
-  },
-  {
-    name: 'Polygon',
-    alchemyEndpoint: 'https://polygon-mainnet.g.alchemy.com/nft/v3',
-    contractAddress: polygonAddresses.installationsDiamond,
-    blockNumber: '56789012', // Corresponding block on Polygon
-    enabled: true,
-  },
-];
-```
-
-For multi-collection runs, edit the `COLLECTIONS` array in `runAllCollections.ts`:
-
-```typescript
-{
-  name: 'Installations',
-  baseSepoliaAddress: baseSepoliaAddresses.installationsDiamond,
-  polygonAddress: polygonAddresses.installationsDiamond,
-  blockNumber: {
-    polygon: '72386800',     // Specific block for Polygon
-    baseSepolia: '12345678', // Specific block for BaseSepolia
-  },
-},
-```
+- **Large contracts**: May take several minutes for 5000+ owners
+- **Transfer analysis**: Limited to 50 addresses to avoid rate limits
+- **Memory usage**: Processes data in memory - monitor for very large datasets
+- **Rate limiting**: 200ms delays between requests by default
 
 ## Supported Networks
 
 The script supports all Alchemy-compatible networks:
 
-- Ethereum Mainnet
-- Polygon
-- Arbitrum
-- Optimism
-- Base
-- World Chain
-- And more...
+- **Polygon Mainnet** ✅ (Primary)
+- **Base Sepolia** ✅ (Primary)
+- **Ethereum Mainnet**
+- **Arbitrum**
+- **Optimism**
+- **Base Mainnet**
+- **And more...**
 
 See [Alchemy's documentation](https://docs.alchemy.com/reference/nft-api-quickstart#supported-networks) for the complete list.
-
-## Contributing
-
-To add support for additional chains or features:
-
-1. Update the `COLLECTION_CONFIG.chains` array in the main script
-2. Set the contract addresses directly in the configuration
-3. Update this README with new configuration options
-4. Test with the new chain before submitting changes
 
 ## File Structure
 
 ```
-scripts/cross-chain-comparison/
-├── compareOwnersAcrossChains.ts  # Main comparison script
-├── advanced-config.ts           # Extended configuration utilities
-├── config.example.env          # Environment variable template
-└── README.md                   # This documentation
+scripts/erc1155-cross-chain-comparison/
+├── compareOwnersAcrossChains.ts    # Main orchestration script (122 lines)
+├── runAllCollections.ts           # Multi-collection orchestrator
+├── types.ts                       # TypeScript type definitions
+├── chainAddresses.ts             # Contract address configurations
+├── config.example.env            # Environment variable template
+├── lib/                           # Modular library functions
+│   ├── utils.ts                   # Configuration & utilities (377 lines)
+│   ├── printers.ts               # Output formatting (220 lines)
+│   ├── comparison.ts             # Comparison logic (217 lines)
+│   └── fetchers.ts               # Data fetching (240 lines)
+└── README.md                     # This documentation
 ```
+
+## Recent Improvements
+
+### v2.0 Features
+
+- ✅ **Transfer Analysis**: Post-snapshot transfer activity analysis
+- ✅ **Balance Adjustment**: Automatic balance adjustment based on transfers
+- ✅ **Effectiveness Measurement**: Resolution rate calculation
+- ✅ **Contract Filtering**: Automatic exclusion of contract addresses
+- ✅ **Type Safety**: Complete TypeScript type system
+- ✅ **Hex Fix**: Proper decimal display for token totals
+- ✅ **Modular Architecture**: Refactored into clean, maintainable modules
+
+### v2.1 Architecture Improvements
+
+- 🏗️ **Modular Design**: Split 1150+ line script into focused modules
+- 📦 **Separation of Concerns**: Each module handles specific functionality
+- 🔧 **lib/utils.ts**: Configuration management and utility functions
+- 🖨️ **lib/printers.ts**: All output formatting and display logic
+- ⚖️ **lib/comparison.ts**: Core comparison algorithms
+- 📡 **lib/fetchers.ts**: Data fetching and API interactions
+- 🧪 **Testability**: Individual modules can be tested in isolation
+- 🔄 **Reusability**: Functions can be imported by other scripts
+
+### Performance Optimizations
+
+- Pagination handling for large datasets
+- Rate limiting with configurable delays
+- Memory-efficient processing
+- Graceful error handling and recovery
+
+## Contributing
+
+To extend functionality:
+
+1. **Add new chains**: Update `ChainConfig` in `getCollectionConfig()`
+2. **Add new collections**: Update `COLLECTIONS` array in `runAllCollections.ts`
+3. **Modify analysis**: Extend transfer analysis or add new metrics
+4. **Update types**: Add new interfaces in `types.ts`
+
+## License
+
+This project is part of the Aavegotchi ecosystem tools.
