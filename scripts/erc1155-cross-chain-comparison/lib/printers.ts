@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { ComparisonResult, NftTransfer, TransferAnalysis } from '../types';
+import { ComparisonResult, NftTransfer, TransferAnalysis } from './types';
 
 export function printResults(result: ComparisonResult): void {
   console.log(chalk.cyan.bold(`\n🔍 ERC1155 CROSS-CHAIN COMPARISON RESULTS`));

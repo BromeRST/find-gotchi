@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import chalk from 'chalk';
-import { baseSepoliaAddresses, polygonAddresses } from './chainAddresses';
+import { baseSepoliaAddresses, polygonAddresses } from './lib/chainAddresses';
 import dotenv from 'dotenv';
 
 // Load environment variables from .env file

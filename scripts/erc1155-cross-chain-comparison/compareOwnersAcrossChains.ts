@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { CollectionConfig, ComparisonResult } from './types';
+import { CollectionConfig, ComparisonResult } from './lib/types';
 import { fetchAllChainData } from './lib/fetchers';
 import { compareAdjustedBalances, compareOwnershipData } from './lib/comparison';
 import { printResults, printTransferAnalysis } from './lib/printers';

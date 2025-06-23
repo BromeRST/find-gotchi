@@ -4,10 +4,10 @@ import {
   Owner,
   OwnerComparison,
   TransferAnalysis,
-} from '../types';
+} from './types';
 import dotenv from 'dotenv';
-import { baseSepoliaAddresses } from '../chainAddresses';
-import { polygonAddresses } from '../chainAddresses';
+import { baseSepoliaAddresses } from './chainAddresses';
+import { polygonAddresses } from './chainAddresses';
 import path from 'path';
 import chalk from 'chalk';
 import fs from 'fs/promises';

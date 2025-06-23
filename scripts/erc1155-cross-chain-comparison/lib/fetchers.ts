@@ -1,7 +1,7 @@
 import chalk from 'chalk';
-import { AlchemyOwnersResponse, ChainConfig, CollectionConfig, NftTransfer, Owner } from '../types';
-import { baseSepoliaAddresses } from '../chainAddresses';
-import { polygonAddresses } from '../chainAddresses';
+import { AlchemyOwnersResponse, ChainConfig, CollectionConfig, NftTransfer, Owner } from './types';
+import { baseSepoliaAddresses } from './chainAddresses';
+import { polygonAddresses } from './chainAddresses';
 
 // Known contract addresses that should be excluded from user ownership comparison
 const KNOWN_CONTRACT_ADDRESSES = new Set([

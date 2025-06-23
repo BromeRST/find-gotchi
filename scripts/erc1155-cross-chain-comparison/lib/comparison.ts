@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { ComparisonResult, Owner, OwnerComparison } from '../types';
+import { ComparisonResult, Owner, OwnerComparison } from './types';
 
 export function compareOwnershipData(
   chainData: { [chainName: string]: Owner[] },

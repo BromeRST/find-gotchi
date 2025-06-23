@@ -20,6 +20,24 @@ interface UsersQueryResult {
   users: User[];
 }
 
+interface GotchiLending {
+  id: string;
+  gotchiTokenId: string;
+  lender: string;
+  gotchi: {
+    owner: {
+      id: string;
+    };
+    originalOwner: {
+      id: string;
+    };
+  };
+}
+
+interface GotchiLendingsQueryResult {
+  gotchiLendings: GotchiLending[];
+}
+
 interface UserComparison {
   userId: string;
   differences: {
@@ -62,7 +80,7 @@ const config = {
   subgraph1Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/api`,
   subgraph2Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-testing-contract-36/api`,
   blockNumber1: 72930920,
-  blockNumber2: 27271903,
+  blockNumber2: 27420871,
   batchSize: 1000,
 };
 
@@ -89,6 +107,32 @@ const USERS_QUERY = `
         id
       }
       ${useOtherQueries ? otherQueries : ''}
+    }
+  }
+`;
+
+const GOTCHI_LENDINGS_QUERY = `
+  query GetGotchiLendings($first: Int!, $skip: Int!, $block: Block_height) {
+    gotchiLendings(
+      first: $first, 
+      skip: $skip, 
+      block: $block,
+      where: {
+        cancelled: false
+        completed: false
+      }
+    ) {
+      id
+      gotchiTokenId
+      lender
+      gotchi {
+        owner {
+          id
+        }
+        originalOwner {
+          id
+        }
+      }
     }
   }
 `;
@@ -154,6 +198,75 @@ async function fetchAllUsersFromSubgraph(
 
   console.log(`Total users fetched from ${subgraphUrl}: ${allUsers.size}`);
   return allUsers;
+}
+
+async function fetchGotchiLendingsFromSubgraph(
+  client: GraphQLClient,
+  skip: number,
+  first: number,
+  blockNumber?: number
+): Promise<GotchiLending[]> {
+  try {
+    const variables: any = {
+      first,
+      skip,
+    };
+
+    if (blockNumber) {
+      variables.block = { number: blockNumber };
+    }
+
+    const result: GotchiLendingsQueryResult = await client.request(
+      GOTCHI_LENDINGS_QUERY,
+      variables
+    );
+    return result.gotchiLendings;
+  } catch (error) {
+    console.error(`Error fetching gotchi lendings from subgraph (skip: ${skip}):`, error);
+    throw error;
+  }
+}
+
+async function fetchAllGotchiLendingsFromSubgraph(
+  subgraphUrl: string,
+  blockNumber?: number
+): Promise<GotchiLending[]> {
+  const client = new GraphQLClient(subgraphUrl);
+  const allLendings: GotchiLending[] = [];
+  let skip = 0;
+  let hasMore = true;
+
+  console.log(`Fetching gotchi lendings from ${subgraphUrl}...`);
+
+  while (hasMore) {
+    console.log(`Fetching lendings batch: skip=${skip}, first=${config.batchSize}`);
+
+    const lendings = await fetchGotchiLendingsFromSubgraph(
+      client,
+      skip,
+      config.batchSize,
+      blockNumber
+    );
+
+    if (lendings.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    allLendings.push(...lendings);
+
+    console.log(`Fetched ${lendings.length} lendings. Total so far: ${allLendings.length}`);
+
+    // If we got fewer lendings than requested, we've reached the end
+    if (lendings.length < config.batchSize) {
+      hasMore = false;
+    }
+
+    skip += config.batchSize;
+  }
+
+  console.log(`Total gotchi lendings fetched from ${subgraphUrl}: ${allLendings.length}`);
+  return allLendings;
 }
 
 function compareArrays<T>(
@@ -330,6 +443,65 @@ function compareUsers(user1: User, user2: User): UserComparison | null {
   return hasDifferences ? { userId: safeUser1.id, differences } : null;
 }
 
+function processLendingsAndUpdateOriginalOwners(
+  users: Map<string, User>,
+  lendings: GotchiLending[]
+): void {
+  console.log(`Processing ${lendings.length} lendings to update original owners...`);
+
+  let updatedCount = 0;
+
+  for (const lending of lendings) {
+    const ownerId = lending.gotchi.owner.id.toLowerCase();
+    const originalOwnerId = lending.gotchi.originalOwner.id.toLowerCase();
+
+    // Only update if owner === originalOwner (case-insensitive)
+    if (ownerId === originalOwnerId) {
+      const gotchiTokenId = lending.gotchiTokenId;
+      const lenderId = lending.lender;
+
+      // Find the user who owns this gotchi and update the originalOwner
+      users.forEach(user => {
+        const gotchiToUpdate = user.gotchisOriginalOwned?.find(g => g.id === gotchiTokenId);
+        if (gotchiToUpdate) {
+          // We need to update the user data structure to reflect the lender as original owner
+          // Since we can't directly modify the gotchi's originalOwner in this structure,
+          // we need to move the gotchi from current user to the lender user
+
+          // Remove from current user
+          user.gotchisOriginalOwned =
+            user.gotchisOriginalOwned?.filter(g => g.id !== gotchiTokenId) || [];
+
+          // Add to lender user (or create lender user if doesn't exist)
+          if (!users.has(lenderId)) {
+            users.set(lenderId, {
+              id: lenderId,
+              gotchisOriginalOwned: [],
+              portalsOwned: [],
+              parcelsOwned: [],
+              fakeGotchiCardBalances: [],
+              fakeGotchiNFTTokens: [],
+            });
+          }
+
+          const lenderUser = users.get(lenderId)!;
+          if (!lenderUser.gotchisOriginalOwned) {
+            lenderUser.gotchisOriginalOwned = [];
+          }
+          lenderUser.gotchisOriginalOwned.push(gotchiToUpdate);
+
+          updatedCount++;
+          console.log(
+            `Updated gotchi ${gotchiTokenId}: moved from ${user.id} to lender ${lenderId}`
+          );
+        }
+      });
+    }
+  }
+
+  console.log(`Updated ${updatedCount} gotchis based on lending information`);
+}
+
 async function main() {
   console.log('Starting user balance comparison...');
   console.log('Configuration:', {
@@ -354,6 +526,15 @@ async function main() {
       fetchAllUsersFromSubgraph(config.subgraph1Url, config.blockNumber1),
       fetchAllUsersFromSubgraph(config.subgraph2Url, config.blockNumber2),
     ]);
+
+    // Fetch gotchi lendings only from subgraph1 (Polygon)
+    const lendings1 = await fetchAllGotchiLendingsFromSubgraph(
+      config.subgraph1Url,
+      config.blockNumber1
+    );
+
+    // Process lendings and update original owners for subgraph1 only
+    processLendingsAndUpdateOriginalOwners(users1, lendings1);
 
     // Filter users from subgraph 1 to only include those with balances
     const filteredUsers1 = new Map<string, User>();
