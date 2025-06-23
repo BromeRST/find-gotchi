@@ -11,7 +11,8 @@ export const baseSepoliaAddresses = {
   gltrContract: '0x8C3A62b925663Aa442e5dc7766E596F1093CFdcF',
 
   realmDiamond: '0x37D140074B2f771bEa7ef23288EB87064e45bF8D',
-  installationsDiamond: '0x5Aefdc5283B24EEa7b50FFBBf7FB8A2bD4537609',
+  // installationsDiamond: '0x5Aefdc5283B24EEa7b50FFBBf7FB8A2bD4537609',
+  installationsDiamond: '0xc004E055Fe865E857684D3C133E3420FD7622E37', // new (testing)
   tilesDiamond: '0x96B19Fa954d961fAD4b665e3259C72466ca4C1dA',
 
   fakeGotchisNFT: '0xD0dCC1d1E22D490e5270631787E1866E773b16C7',

@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { AlchemyOwnersResponse, ChainConfig, CollectionConfig, NftTransfer, Owner } from './types';
 import { baseSepoliaAddresses } from './chainAddresses';
 import { polygonAddresses } from './chainAddresses';
+import { ownerContractAddressesOnPolygon } from '../../lib';
 
 // Known contract addresses that should be excluded from user ownership comparison
 const KNOWN_CONTRACT_ADDRESSES = new Set([
@@ -32,6 +33,9 @@ const KNOWN_CONTRACT_ADDRESSES = new Set([
   // Common addresses
   '0x000000000000000000000000000000000000dead', // burn address
   '0x0000000000000000000000000000000000000000', // zero address
+
+  // Contract addresses that should be excluded from user ownership comparison
+  ...ownerContractAddressesOnPolygon,
 ]);
 
 function isContractAddress(address: string): boolean {
@@ -217,22 +221,45 @@ export async function fetchTransfersForContract({
     );
 
     // Convert alchemy_getAssetTransfers format to our NftTransfer format
-    return data.result.transfers.map((transfer: any) => ({
-      contract: {
-        address: contractAddress,
-        tokenType: transfer.category === 'erc721' ? 'ERC721' : 'ERC1155',
-      },
-      tokenId:
+    return data.result.transfers.map((transfer: any) => {
+      // Convert hex tokenId to decimal string
+      let tokenId =
         transfer.erc721TokenId ||
         (transfer.erc1155Metadata && transfer.erc1155Metadata.length > 0
           ? transfer.erc1155Metadata[0].tokenId
-          : '0'),
-      tokenType: transfer.category === 'erc721' ? 'ERC721' : 'ERC1155',
-      from: transfer.from,
-      to: transfer.to,
-      transactionHash: transfer.hash,
-      blockNumber: transfer.blockNum,
-    }));
+          : '0');
+
+      // Convert hex to decimal if it's in hex format
+      if (tokenId.startsWith('0x')) {
+        tokenId = parseInt(tokenId, 16).toString();
+      }
+
+      // Convert hex blockNumber to decimal string
+      let blockNumber = transfer.blockNum;
+      if (blockNumber.startsWith('0x')) {
+        blockNumber = parseInt(blockNumber, 16).toString();
+      }
+
+      return {
+        contract: {
+          address: contractAddress,
+          tokenType: transfer.category === 'erc721' ? 'ERC721' : 'ERC1155',
+        },
+        tokenId,
+        tokenType: transfer.category === 'erc721' ? 'ERC721' : 'ERC1155',
+        from: transfer.from,
+        to: transfer.to,
+        transactionHash: transfer.hash,
+        blockNumber,
+        // Add transfer amount for ERC1155 tokens
+        transferAmount:
+          transfer.category === 'erc1155' &&
+          transfer.erc1155Metadata &&
+          transfer.erc1155Metadata.length > 0
+            ? parseInt(transfer.erc1155Metadata[0].value || '1', 10)
+            : 1, // Default to 1 for ERC721
+      };
+    });
   }
 
   return [];

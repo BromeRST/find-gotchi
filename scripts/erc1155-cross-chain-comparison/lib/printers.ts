@@ -179,17 +179,13 @@ export function printTransferAnalysis(
         transfers.forEach(transfer => {
           const direction =
             transfer.to.toLowerCase() === analysis.address.toLowerCase() ? 'RECEIVED' : 'SENT';
-          const blockNum = parseInt(
-            transfer.blockNumber.startsWith('0x')
-              ? transfer.blockNumber
-              : `0x${parseInt(transfer.blockNumber).toString(16)}`,
-            16
-          );
-          const tokenIdDecimal = parseInt(transfer.tokenId, 16).toString();
+          // blockNumber and tokenId are already in decimal format from the API
+          const blockNum = transfer.blockNumber;
+          const tokenIdDecimal = transfer.tokenId;
           const otherParty = direction === 'RECEIVED' ? transfer.from : transfer.to;
 
           console.log(
-            `     ${direction === 'RECEIVED' ? chalk.green('↓') : chalk.red('↑')} Block ${blockNum}: ${direction} Token ${tokenIdDecimal} ${direction === 'RECEIVED' ? 'from' : 'to'} ${otherParty}`
+            `     ${direction === 'RECEIVED' ? chalk.green('↓') : chalk.red('↑')} Block ${blockNum}: ${direction} ${transfer.transferAmount || 1}x Token ${tokenIdDecimal} ${direction === 'RECEIVED' ? 'from' : 'to'} ${otherParty}`
           );
         });
       });

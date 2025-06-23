@@ -88,6 +88,7 @@ export interface NftTransfer {
   to: string;
   transactionHash: string;
   blockNumber: string;
+  transferAmount: number; // Amount of tokens transferred (1 for ERC721, actual amount for ERC1155)
 }
 
 export interface TransferAnalysis {

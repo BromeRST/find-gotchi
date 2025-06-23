@@ -24,7 +24,7 @@ const COLLECTIONS: CollectionDefinition[] = [
     baseSepoliaAddress: baseSepoliaAddresses.installationsDiamond,
     polygonAddress: polygonAddresses.installationsDiamond,
     blockNumber: {
-      polygon: '72386800', // You can set specific block numbers for each collection
+      polygon: '73121283', // You can set specific block numbers for each collection
       // baseSepolia: '12345678', // Uncomment and set if needed
     },
   },

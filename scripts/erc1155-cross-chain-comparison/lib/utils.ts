@@ -139,9 +139,17 @@ export function adjustBalancesWithTransfers(
     const tokenAdjustments = new Map<string, number>();
 
     analysis.relevantTransfers.forEach(transfer => {
-      const tokenIdDecimal = parseInt(transfer.tokenId, 16).toString();
+      // tokenId is already in decimal format from the API
+      const tokenIdDecimal = transfer.tokenId;
       const isReceived = transfer.to.toLowerCase() === ownerAddress;
-      const adjustment = isReceived ? 1 : -1; // +1 for received, -1 for sent
+      const transferAmount = transfer.transferAmount || 1;
+
+      // Working backwards from current balance to snapshot balance:
+      // Current Balance = Snapshot Balance + Net Transfers Since Snapshot
+      // Therefore: Snapshot Balance = Current Balance - Net Transfers Since Snapshot
+      // - If received post-snapshot: subtract received amount from current balance
+      // - If sent post-snapshot: add sent amount to current balance
+      const adjustment = isReceived ? -transferAmount : +transferAmount;
 
       if (!tokenAdjustments.has(tokenIdDecimal)) {
         tokenAdjustments.set(tokenIdDecimal, 0);
@@ -161,7 +169,7 @@ export function adjustBalancesWithTransfers(
         tokenBalance.balance = newBalance;
 
         console.log(
-          `  Token ${tokenId}: ${originalBalance} → ${newBalance} (${netChange >= 0 ? '+' : ''}${netChange})`
+          `  Token ${tokenId}: ${originalBalance} → ${newBalance} (${netChange >= 0 ? '+' : ''}${netChange}) [snapshot adjustment]`
         );
         totalAdjustments++;
       } else if (netChange > 0) {
@@ -170,12 +178,15 @@ export function adjustBalancesWithTransfers(
           tokenId,
           balance: netChange,
         });
-        console.log(`  Token ${tokenId}: 0 → ${netChange} (new token)`);
+        console.log(
+          `  Token ${tokenId}: 0 → ${netChange} (tokens received post-snapshot, adjusting to snapshot balance)`
+        );
         totalAdjustments++;
       } else {
-        // Token was sent but didn't exist in original balance - this indicates the token was minted and sent in the same period
+        // Token was received post-snapshot but didn't exist in original balance
+        // This means the token balance should be 0 at snapshot time
         console.log(
-          `  Token ${tokenId}: 0 → 0 (sent ${Math.abs(netChange)} tokens that were minted post-snapshot)`
+          `  Token ${tokenId}: 0 → 0 (tokens were received post-snapshot, snapshot balance was 0)`
         );
       }
     });
@@ -304,11 +315,8 @@ export async function analyzeTransfersForDiscrepancies(
       );
 
       const relevantTransfers = addressTransfers.filter(transfer => {
-        // NFT API returns tokenId directly, not in metadata array
-        // Convert both to same format for comparison (decimal string)
-        const transferTokenId = transfer.tokenId.startsWith('0x')
-          ? parseInt(transfer.tokenId, 16).toString()
-          : transfer.tokenId;
+        // tokenId is already in decimal format from the API
+        const transferTokenId = transfer.tokenId;
         return relevantTokenIds.has(transferTokenId);
       });
 
@@ -330,16 +338,12 @@ export async function analyzeTransfersForDiscrepancies(
         relevantTransfers.forEach(transfer => {
           const direction =
             transfer.to.toLowerCase() === address.toLowerCase() ? 'RECEIVED' : 'SENT';
-          const blockNum = parseInt(
-            transfer.blockNumber.startsWith('0x')
-              ? transfer.blockNumber
-              : `0x${parseInt(transfer.blockNumber).toString(16)}`,
-            16
-          );
+          // blockNumber and tokenId are already in decimal format from the API
+          const blockNum = transfer.blockNumber;
 
           console.log(
             chalk.gray(
-              `    ${direction} in block ${blockNum}: Token ${parseInt(transfer.tokenId, 16).toString()} ${direction === 'RECEIVED' ? 'from' : 'to'} ${direction === 'RECEIVED' ? transfer.from : transfer.to}`
+              `    ${direction} in block ${blockNum}: ${transfer.transferAmount || 1}x Token ${transfer.tokenId} ${direction === 'RECEIVED' ? 'from' : 'to'} ${direction === 'RECEIVED' ? transfer.from : transfer.to}`
             )
           );
         });
