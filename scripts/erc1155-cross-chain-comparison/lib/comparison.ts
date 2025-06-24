@@ -1,9 +1,16 @@
 import chalk from 'chalk';
 import { ComparisonResult, Owner, OwnerComparison } from './types';
 
+// Addresses to exclude from discrepancy analysis (known system/bridge addresses)
+// THIS is PIXELCRAFT'S ADDRESS
+const EXCLUDED_ADDRESSES = new Set([
+  '0x01F010a5e001fe9d6940758EA5e8c777885E351e'.toLowerCase(), // Known system address
+]);
+
 export function compareOwnershipData(
   chainData: { [chainName: string]: Owner[] },
-  collectionName: string
+  collectionName: string,
+  contractAddresses?: { [chainName: string]: string }
 ): ComparisonResult {
   console.log(chalk.cyan(`Analyzing ownership data for "${collectionName}" across chains...\n`));
 
@@ -26,6 +33,16 @@ export function compareOwnershipData(
   // Find all unique addresses across both chains
   const allAddresses = new Set([...chain1Map.keys(), ...chain2Map.keys()]);
 
+  // Filter out excluded addresses
+  const filteredAddresses = new Set(
+    [...allAddresses].filter(address => !EXCLUDED_ADDRESSES.has(address.toLowerCase()))
+  );
+
+  if (allAddresses.size !== filteredAddresses.size) {
+    const excludedCount = allAddresses.size - filteredAddresses.size;
+    console.log(chalk.gray(`🚫 Excluded ${excludedCount} known system address(es) from analysis`));
+  }
+
   // Categorize owners
   const ownersOnlyOnChain: { [chainName: string]: string[] } = {
     [chain1Name]: [],
@@ -33,7 +50,7 @@ export function compareOwnershipData(
   };
   const discrepancies: OwnerComparison[] = [];
 
-  allAddresses.forEach(address => {
+  filteredAddresses.forEach(address => {
     const owner1 = chain1Map.get(address);
     const owner2 = chain2Map.get(address);
 
@@ -90,7 +107,10 @@ export function compareOwnershipData(
           [chain2Name]: balance2,
         };
 
-        const hasDifference = balance1 !== balance2;
+        // Convert both balances to numbers for proper comparison
+        const numBalance1 = typeof balance1 === 'string' ? parseInt(balance1, 10) : balance1;
+        const numBalance2 = typeof balance2 === 'string' ? parseInt(balance2, 10) : balance2;
+        const hasDifference = numBalance1 !== numBalance2;
 
         if (hasDifference) {
           tokenBalanceDiffs.push({
@@ -120,13 +140,14 @@ export function compareOwnershipData(
       [chain1Name]: chain1Owners.length,
       [chain2Name]: chain2Owners.length,
     },
-    uniqueOwners: allAddresses.size,
+    uniqueOwners: filteredAddresses.size,
     ownersWithDiscrepancies: discrepancies.length,
     tokenDiscrepancies: discrepancies.reduce(
       (sum, owner) => sum + owner.discrepancies.tokenBalanceDiffs.length,
       0
     ),
     chainsCompared: chainNames,
+    contractAddresses: contractAddresses || {},
   };
 
   return {

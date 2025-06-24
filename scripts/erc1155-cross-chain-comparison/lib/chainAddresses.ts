@@ -1,8 +1,8 @@
 export const baseSepoliaAddresses = {
   ghst: '0xe97f36a00058aa7dfc4e85d23532c3f70453a7ae',
-  aavegotchiDiamond: '0xf28469b81871D924ae70664FEBf5AF626AAe5087',
-  wearableDiamond: '0xAfdfE373C57Ac5CddbD57DEA6f3fF67C36D8ACFE',
-  forgeDiamond: '0xec3DD222148b686995b86515C99A772375D691B7',
+  aavegotchiDiamond: '0x8804AD8031dD98f4968dBD4ffBc129bCeEfd20fC',
+  forgeDiamond: '0xACeb357f79A7C84b0aac41CD36399625538d91C1',
+  wearableDiamond: '0x725CC5175ab79bF57f3088A2a095cf8B339BfE23',
 
   fudContract: '0x98810DD548cd39213A609ef373c7eBD5524b32F8',
   fomoContract: '0xe67A189A9efF5B72B236ECf7B1Ac249d3496e31E',
@@ -10,7 +10,8 @@ export const baseSepoliaAddresses = {
   kekContract: '0x03f2D8689177d2ebc9686C01065818c02C053f6a',
   gltrContract: '0x8C3A62b925663Aa442e5dc7766E596F1093CFdcF',
 
-  realmDiamond: '0x37D140074B2f771bEa7ef23288EB87064e45bF8D',
+  // realmDiamond: '0x37D140074B2f771bEa7ef23288EB87064e45bF8D',
+  realmDiamond: '0xD30400839aCbFfE2847095BC3Be7c510CE812300',
   // installationsDiamond: '0x5Aefdc5283B24EEa7b50FFBBf7FB8A2bD4537609',
   installationsDiamond: '0xc004E055Fe865E857684D3C133E3420FD7622E37', // new (testing)
   // tilesDiamond: '0x96B19Fa954d961fAD4b665e3259C72466ca4C1dA',

@@ -50,6 +50,7 @@ export interface ComparisonResult {
     ownersWithDiscrepancies: number;
     tokenDiscrepancies: number;
     chainsCompared: string[];
+    contractAddresses: { [chainName: string]: string };
   };
   discrepancies: OwnerComparison[];
   detailedReport: {
@@ -57,6 +58,7 @@ export interface ComparisonResult {
   };
   transferAnalysis?: TransferAnalysis[];
   adjustedComparison?: ComparisonResult;
+  adjustmentSummary?: AdjustmentSummary;
 }
 
 export interface NftTransfer {
@@ -98,5 +100,24 @@ export interface TransferAnalysis {
   blockRange: {
     from: string;
     to: string;
+  };
+}
+
+export interface AdjustmentSummary {
+  originalDiscrepancies: {
+    ownersWithDiscrepancies: number;
+    tokenDiscrepancies: number;
+  };
+  adjustedDiscrepancies: {
+    ownersWithDiscrepancies: number;
+    tokenDiscrepancies: number;
+  };
+  resolved: {
+    ownersWithDiscrepancies: number;
+    tokenDiscrepancies: number;
+  };
+  resolutionRate: {
+    owners: number; // percentage
+    tokens: number; // percentage
   };
 }

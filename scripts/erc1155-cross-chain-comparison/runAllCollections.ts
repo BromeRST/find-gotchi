@@ -37,21 +37,20 @@ const COLLECTIONS: CollectionDefinition[] = [
       // baseSepolia: '12345678', // Uncomment and set if needed
     },
   },
-  //   {
-  //     name: 'Wearables',
-  //     baseSepoliaAddress: baseSepoliaAddresses.wearableDiamond,
-  //     polygonAddress: polygonAddresses.wearableDiamond,
-  //   },
   // {
   //   name: 'FakeCards',
   //   baseSepoliaAddress: baseSepoliaAddresses.fakeCardsDiamond,
   //   polygonAddress: polygonAddresses.fakeCardsDiamond,
   // },
-  // {
-  //   name: 'Forge',
-  //   baseSepoliaAddress: baseSepoliaAddresses.forgeDiamond,
-  //   polygonAddress: polygonAddresses.forgeDiamond,
-  // },
+  {
+    name: 'Forge',
+    baseSepoliaAddress: baseSepoliaAddresses.forgeDiamond,
+    polygonAddress: polygonAddresses.forgeDiamond,
+    blockNumber: {
+      polygon: '73121283', // You can set specific block numbers for each collection
+      // baseSepolia: '12345678', // Uncomment and set if needed
+    },
+  },
 ];
 
 // Function to run comparison for a single collection

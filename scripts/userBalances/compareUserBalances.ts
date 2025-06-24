@@ -2,9 +2,13 @@ import { GraphQLClient } from 'graphql-request';
 import fs from 'fs/promises';
 import path from 'path';
 import dotenv from 'dotenv';
+import { ownerContractAddressesOnPolygon } from '../lib';
 
 // Load environment variables from .env file
 dotenv.config();
+
+// Convert to Set for faster lookup and make case-insensitive
+const excludedAddresses = new Set(ownerContractAddressesOnPolygon.map(addr => addr.toLowerCase()));
 
 // Types for the user data structure based on your query
 interface User {
@@ -78,35 +82,43 @@ interface UserComparison {
 // Configuration - these will need to be provided
 const config = {
   subgraph1Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/api`,
-  subgraph2Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-testing-contract-36/api`,
-  blockNumber1: 72930920,
-  blockNumber2: 27420871,
+  subgraph2Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-2/api`,
+  blockNumber1: 73121283,
+  blockNumber2: 27493601,
   batchSize: 1000,
 };
 
-const otherQueries = `
-      fakeGotchiNFTTokens(first: 2000) {
-        identifier
-      }
-      parcelsOwned(first: 2000) {
-        id
-        parcelHash
-      }
+const gotchiQuery = `
+  gotchisOriginalOwned(first: 2000) {
+    id
+  }
 `;
 
-const useOtherQueries = false;
+const portalQuery = `
+  portalsOwned(first: 2000, where: { claimedAt: null }) {
+    id
+  }
+`;
+
+const fakegotchiQuery = `
+  fakeGotchiNFTTokens(first: 2000) {
+    identifier
+  }
+`;
+
+const parcelQuery = `
+  parcelsOwned(first: 2000) {
+    id
+  }
+`;
+
+const queryToUse = parcelQuery;
 
 const USERS_QUERY = `
   query GetUsers($first: Int!, $skip: Int!, $block: Block_height) {
     users(first: $first, skip: $skip, block: $block) {
       id
-      gotchisOriginalOwned(first: 2000) {
-        id
-      }
-      portalsOwned(first: 2000, where: { claimedAt: null }) {
-        id
-      }
-      ${useOtherQueries ? otherQueries : ''}
+      ${queryToUse}
     }
   }
 `;
@@ -527,14 +539,33 @@ async function main() {
       fetchAllUsersFromSubgraph(config.subgraph2Url, config.blockNumber2),
     ]);
 
-    // Fetch gotchi lendings only from subgraph1 (Polygon)
-    const lendings1 = await fetchAllGotchiLendingsFromSubgraph(
-      config.subgraph1Url,
-      config.blockNumber1
-    );
+    // Fetch gotchi lendings only from subgraph1 (Polygon) if querying gotchis
+    const isGotchiQuery = queryToUse.includes('gotchisOriginalOwned');
+    if (isGotchiQuery) {
+      console.log('Detected gotchi query - fetching gotchi lendings...');
+      const lendings1 = await fetchAllGotchiLendingsFromSubgraph(
+        config.subgraph1Url,
+        config.blockNumber1
+      );
 
-    // Process lendings and update original owners for subgraph1 only
-    processLendingsAndUpdateOriginalOwners(users1, lendings1);
+      // Process lendings and update original owners for subgraph1 only
+      processLendingsAndUpdateOriginalOwners(users1, lendings1);
+    } else {
+      console.log('Non-gotchi query detected - skipping gotchi lendings fetch');
+    }
+
+    // Remove excluded addresses from both subgraphs
+    const excludedCount1 = users1.size;
+    excludedAddresses.forEach(excludedAddr => {
+      users1.delete(excludedAddr);
+    });
+    console.log(`Excluded ${excludedCount1 - users1.size} contract addresses from subgraph1`);
+
+    const excludedCount2 = users2.size;
+    excludedAddresses.forEach(excludedAddr => {
+      users2.delete(excludedAddr);
+    });
+    console.log(`Excluded ${excludedCount2 - users2.size} contract addresses from subgraph2`);
 
     // Filter users from subgraph 1 to only include those with balances
     const filteredUsers1 = new Map<string, User>();
@@ -620,8 +651,23 @@ async function main() {
       differences,
     };
 
-    // Save results to file
-    const outputPath = path.join(process.cwd(), 'data/results', 'user-balance-comparison.json');
+    // Save results to file with query type and date
+    const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
+    // Determine query type based on the query being used
+    let queryType = 'unknown-comparison';
+    if (queryToUse.includes('gotchisOriginalOwned')) {
+      queryType = 'gotchis-comparison';
+    } else if (queryToUse.includes('portalsOwned')) {
+      queryType = 'portals-comparison';
+    } else if (queryToUse.includes('parcelsOwned')) {
+      queryType = 'parcels-comparison';
+    } else if (queryToUse.includes('fakeGotchiNFTTokens')) {
+      queryType = 'fakegotchi-comparison';
+    }
+
+    const filename = `${queryType}-${currentDate}.json`;
+    const outputPath = path.join(process.cwd(), 'data/results/users', filename);
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
     await fs.writeFile(outputPath, JSON.stringify(results, null, 2));
 
