@@ -28,11 +28,15 @@ const COLLECTIONS: CollectionDefinition[] = [
       // baseSepolia: '12345678', // Uncomment and set if needed
     },
   },
-  // {
-  //   name: 'Tiles',
-  //   baseSepoliaAddress: baseSepoliaAddresses.tilesDiamond,
-  //   polygonAddress: polygonAddresses.tilesDiamond,
-  // },
+  {
+    name: 'Tiles',
+    baseSepoliaAddress: baseSepoliaAddresses.tilesDiamond,
+    polygonAddress: polygonAddresses.tilesDiamond,
+    blockNumber: {
+      polygon: '73121283', // You can set specific block numbers for each collection
+      // baseSepolia: '12345678', // Uncomment and set if needed
+    },
+  },
   //   {
   //     name: 'Wearables',
   //     baseSepoliaAddress: baseSepoliaAddresses.wearableDiamond,
