@@ -2,25 +2,20 @@ import fs from 'fs/promises';
 import path from 'path';
 import dotenv from 'dotenv';
 import { ownerContractAddressesOnPolygon } from '../lib';
-import {
-  gotchiQuery,
-  portalQuery,
-  fakegotchiQuery,
-  parcelQuery,
-} from './queries';
+import { gotchiQuery, portalQuery, fakegotchiQuery, parcelQuery } from './lib/queries';
 import {
   fetchAllUsersFromSubgraph,
   fetchAllGotchiLendingsFromSubgraph,
   fetchAllEthereumAavegotchisFromSubgraph,
-} from './fetchers';
-import { compareUsers, hasAnyBalances } from './compare';
-import type { User } from './types';
+} from './lib/fetchers';
+import { compareUsers, hasAnyBalances } from './lib/compare';
+import type { User } from './lib/types';
 import {
   processLendingsAndUpdateOriginalOwners,
   processVaultOwnersAndUpdateOriginalOwners,
   updatePolygonOriginalOwnersFromEthereum,
-} from './owners';
-import { logInfo, logSuccess, logError } from './logger';
+} from './lib/owners';
+import { logInfo, logSuccess, logError } from './lib/logger';
 
 dotenv.config();
 
@@ -45,8 +40,18 @@ async function main() {
   logInfo(`Configuration: ${JSON.stringify(config, null, 2)}`);
 
   const [users1, users2] = await Promise.all([
-    fetchAllUsersFromSubgraph(config.subgraph1Url, queryToUse, config.batchSize, config.blockNumber1),
-    fetchAllUsersFromSubgraph(config.subgraph2Url, queryToUse, config.batchSize, config.blockNumber2),
+    fetchAllUsersFromSubgraph(
+      config.subgraph1Url,
+      queryToUse,
+      config.batchSize,
+      config.blockNumber1
+    ),
+    fetchAllUsersFromSubgraph(
+      config.subgraph2Url,
+      queryToUse,
+      config.batchSize,
+      config.blockNumber2
+    ),
   ]);
 
   let totalIds1 = 0;
