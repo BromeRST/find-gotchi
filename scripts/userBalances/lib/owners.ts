@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { polygonAddresses } from '../erc1155-cross-chain-comparison/lib/chainAddresses';
+import { polygonAddresses } from '../../erc1155-cross-chain-comparison/lib/chainAddresses';
 import { vaultAbi } from './vaultAbi';
 import { User, GotchiLending } from './types';
 import { retryWithDelay, delay } from './utils';
@@ -68,7 +68,8 @@ export function processLendingsAndUpdateOriginalOwners(
       users.forEach(user => {
         const gotchiToUpdate = user.gotchisOriginalOwned?.find(g => g.id === gotchiTokenId);
         if (gotchiToUpdate) {
-          user.gotchisOriginalOwned = user.gotchisOriginalOwned?.filter(g => g.id !== gotchiTokenId) || [];
+          user.gotchisOriginalOwned =
+            user.gotchisOriginalOwned?.filter(g => g.id !== gotchiTokenId) || [];
 
           if (!users.has(lenderId)) {
             users.set(lenderId, {
@@ -88,9 +89,7 @@ export function processLendingsAndUpdateOriginalOwners(
           lenderUser.gotchisOriginalOwned.push(gotchiToUpdate);
 
           updatedCount++;
-          logInfo(
-            `Updated gotchi ${gotchiTokenId}: moved from ${user.id} to lender ${lenderId}`
-          );
+          logInfo(`Updated gotchi ${gotchiTokenId}: moved from ${user.id} to lender ${lenderId}`);
         }
       });
     }
@@ -99,7 +98,9 @@ export function processLendingsAndUpdateOriginalOwners(
   logSuccess(`Updated ${updatedCount} gotchis based on lending information`);
 }
 
-export async function processVaultOwnersAndUpdateOriginalOwners(users: Map<string, User>): Promise<void> {
+export async function processVaultOwnersAndUpdateOriginalOwners(
+  users: Map<string, User>
+): Promise<void> {
   const vaultGotchis: string[] = [];
   const vaultAddress = VAULT_ADDRESS.toLowerCase();
 
@@ -177,7 +178,9 @@ export function updatePolygonOriginalOwnersFromEthereum(
   gotchisToMove.forEach(({ tokenId, fromUser, toUser }) => {
     const currentUser = polygonUsers.get(fromUser);
     if (currentUser?.gotchisOriginalOwned) {
-      currentUser.gotchisOriginalOwned = currentUser.gotchisOriginalOwned.filter(g => g.id !== tokenId);
+      currentUser.gotchisOriginalOwned = currentUser.gotchisOriginalOwned.filter(
+        g => g.id !== tokenId
+      );
     }
 
     if (!polygonUsers.has(toUser)) {
