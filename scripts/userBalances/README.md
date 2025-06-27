@@ -7,6 +7,7 @@ This script compares user balances between two different subgraphs to identify d
 - Fetches all users from both subgraphs in batches of 1000
 - Compares the following user data:
   - `gotchisOriginalOwned`
+
   - `portalsOwned` (unopened only)
   - `parcelsOwned`
   - `fakeGotchiCardBalances`
@@ -14,6 +15,17 @@ This script compares user balances between two different subgraphs to identify d
 - Identifies users that exist only in one subgraph
 - Detects differences in balances and values
 - Exports results to a JSON file
+
+## Folder Structure
+
+The logic is split into several modules:
+- `compareUserBalances.ts` - main entry point.
+- `types.ts` - TypeScript interfaces.
+- `queries.ts` - GraphQL query strings.
+- `fetchers.ts` - data retrieval helpers.
+- `compare.ts` - comparison utilities.
+- `owners.ts` - functions for resolving original owners.
+- `utils.ts` - shared helpers.
 
 ## Usage
 
