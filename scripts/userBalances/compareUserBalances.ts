@@ -7,20 +7,20 @@ import {
   portalQuery,
   fakegotchiQuery,
   parcelQuery,
-} from './queries';
+} from './lib/queries';
 import {
   fetchAllUsersFromSubgraph,
   fetchAllGotchiLendingsFromSubgraph,
   fetchAllEthereumAavegotchisFromSubgraph,
-} from './fetchers';
-import { compareUsers, hasAnyBalances } from './compare';
-import type { User } from './types';
+} from './lib/fetchers';
+import { compareUsers, hasAnyBalances } from './lib/compare';
+import type { User } from './lib/types';
 import {
   processLendingsAndUpdateOriginalOwners,
   processVaultOwnersAndUpdateOriginalOwners,
   updatePolygonOriginalOwnersFromEthereum,
-} from './owners';
-import { logInfo, logSuccess, logError } from './logger';
+} from './lib/owners';
+import { logInfo, logSuccess, logError } from './lib/logger';
 
 dotenv.config();
 

@@ -20,15 +20,16 @@ This script compares user balances between two different subgraphs to identify d
 
 ## Folder Structure
 
-The logic is split into several modules:
+The logic is split into several modules under a `lib` directory:
 - `compareUserBalances.ts` - main entry point.
-- `types.ts` - TypeScript interfaces.
-- `queries.ts` - GraphQL query strings.
-- `fetchers.ts` - data retrieval helpers.
-- `compare.ts` - comparison utilities.
-- `owners.ts` - functions for resolving original owners.
-- `utils.ts` - shared helpers.
-- `logger.ts` - simple colored logging helpers.
+- `lib/types.ts` - TypeScript interfaces.
+- `lib/queries.ts` - GraphQL query strings.
+- `lib/fetchers.ts` - data retrieval helpers.
+- `lib/compare.ts` - comparison utilities.
+- `lib/owners.ts` - functions for resolving original owners.
+- `lib/utils.ts` - shared helpers.
+- `lib/logger.ts` - simple colored logging helpers.
+- `lib/vaultAbi.ts` - ABI used by owner resolution utilities.
 
 ## Usage
 
