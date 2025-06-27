@@ -14,12 +14,13 @@ import {
   fetchAllEthereumAavegotchisFromSubgraph,
 } from './fetchers';
 import { compareUsers, hasAnyBalances } from './compare';
-import type { User } from "./types";
+import type { User } from './types';
 import {
   processLendingsAndUpdateOriginalOwners,
   processVaultOwnersAndUpdateOriginalOwners,
   updatePolygonOriginalOwnersFromEthereum,
 } from './owners';
+import { logInfo, logSuccess, logError } from './logger';
 
 dotenv.config();
 
@@ -40,8 +41,8 @@ const config = {
 const queryToUse = gotchiQuery;
 
 async function main() {
-  console.log('Starting user balance comparison...');
-  console.log('Configuration:', config);
+  logInfo('Starting user balance comparison...');
+  logInfo(`Configuration: ${JSON.stringify(config, null, 2)}`);
 
   const [users1, users2] = await Promise.all([
     fetchAllUsersFromSubgraph(config.subgraph1Url, queryToUse, config.batchSize, config.blockNumber1),
@@ -79,12 +80,12 @@ async function main() {
     }
   });
 
-  console.log(`Total IDs found in subgraph1: ${totalIds1}`);
-  console.log(`Total IDs found in subgraph2: ${totalIds2}`);
+  logInfo(`Total IDs found in subgraph1: ${totalIds1}`);
+  logInfo(`Total IDs found in subgraph2: ${totalIds2}`);
 
   const isGotchiQuery = queryToUse.includes('gotchisOriginalOwned');
   if (isGotchiQuery) {
-    console.log('Detected gotchi query - fetching gotchi lendings...');
+    logInfo('Detected gotchi query - fetching gotchi lendings...');
     const lendings1 = await fetchAllGotchiLendingsFromSubgraph(
       config.subgraph1Url,
       config.batchSize,
@@ -98,15 +99,15 @@ async function main() {
     );
     updatePolygonOriginalOwnersFromEthereum(users1, ethereumGotchiOwners);
   } else {
-    console.log('Non-gotchi query detected - skipping gotchi lendings fetch');
+    logInfo('Non-gotchi query detected - skipping gotchi lendings fetch');
   }
 
   const excludedCount1 = users1.size;
   excludedAddresses.forEach(addr => users1.delete(addr));
   const excludedCount2 = users2.size;
   excludedAddresses.forEach(addr => users2.delete(addr));
-  console.log(`Excluded ${excludedCount1 - users1.size} contract addresses from subgraph1`);
-  console.log(`Excluded ${excludedCount2 - users2.size} contract addresses from subgraph2`);
+  logInfo(`Excluded ${excludedCount1 - users1.size} contract addresses from subgraph1`);
+  logInfo(`Excluded ${excludedCount2 - users2.size} contract addresses from subgraph2`);
 
   const filteredUsers1 = new Map<string, User>();
   let usersWithoutBalances1 = 0;
@@ -129,16 +130,16 @@ async function main() {
       usersWithoutBalances2++;
     }
   });
-  console.log(`\nComparison Summary:`);
-  console.log(`Users in subgraph 1 (total): ${users1.size}`);
-  console.log(`Users in subgraph 1 (with balances): ${filteredUsers1.size}`);
-  console.log(`Users in subgraph 1 (without balances, excluded): ${usersWithoutBalances1}`);
-  console.log(`Users in subgraph 2 (total): ${users2.size}`);
-  console.log(`Users in subgraph 2 (with balances): ${filteredUsers2.size}`);
-  console.log(`Users in subgraph 2 (without balances, excluded): ${usersWithoutBalances2}`);
+  logInfo(`\n📊 Comparison Summary:`);
+  logInfo(`Users in subgraph 1 (total): ${users1.size}`);
+  logInfo(`Users in subgraph 1 (with balances): ${filteredUsers1.size}`);
+  logInfo(`Users in subgraph 1 (without balances, excluded): ${usersWithoutBalances1}`);
+  logInfo(`Users in subgraph 2 (total): ${users2.size}`);
+  logInfo(`Users in subgraph 2 (with balances): ${filteredUsers2.size}`);
+  logInfo(`Users in subgraph 2 (without balances, excluded): ${usersWithoutBalances2}`);
 
   const allUserIds = new Set([...filteredUsers1.keys(), ...filteredUsers2.keys()]);
-  console.log(`Total unique users (after filtering): ${allUserIds.size}`);
+  logInfo(`Total unique users (after filtering): ${allUserIds.size}`);
 
   const differences = [] as any[];
   const usersOnlyInSubgraph1: string[] = [];
@@ -206,17 +207,17 @@ async function main() {
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, JSON.stringify(results, null, 2));
 
-  console.log(`\nResults saved to: ${outputPath}`);
-  console.log(`Found ${differences.length} users with differences`);
-  console.log(`Found ${usersOnlyInSubgraph1.length} users only in subgraph 1`);
-  console.log(`Found ${usersOnlyInSubgraph2.length} users only in subgraph 2`);
+  logSuccess(`\nResults saved to: ${outputPath}`);
+  logInfo(`Found ${differences.length} users with differences`);
+  logInfo(`Found ${usersOnlyInSubgraph1.length} users only in subgraph 1`);
+  logInfo(`Found ${usersOnlyInSubgraph2.length} users only in subgraph 2`);
 
   if (differences.length > 0) {
-    console.log('\nSample differences:');
+    logInfo('\nSample differences:');
     differences.slice(0, 3).forEach(diff => {
-      console.log(`User ${diff.userId}:`);
+      logInfo(`User ${diff.userId}:`);
       Object.entries(diff.differences).forEach(([key, value]) => {
-        console.log(`  ${key}: ${JSON.stringify(value, null, 2)}`);
+        logInfo(`  ${key}: ${JSON.stringify(value, null, 2)}`);
       });
     });
   }
@@ -224,7 +225,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(err => {
-    console.error('Error in main process:', err);
+    logError(`Error in main process: ${err}`);
     process.exit(1);
   });
 }

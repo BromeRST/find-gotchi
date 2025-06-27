@@ -16,6 +16,7 @@ This script compares user balances between two different subgraphs to identify d
 - Detects differences in balances and values
 - Exports results to a JSON file
 - Prints progress logs for each batch of requests
+- Uses **chalk** and emoji to colorize output for better readability
 
 ## Folder Structure
 
@@ -27,6 +28,7 @@ The logic is split into several modules:
 - `compare.ts` - comparison utilities.
 - `owners.ts` - functions for resolving original owners.
 - `utils.ts` - shared helpers.
+- `logger.ts` - simple colored logging helpers.
 
 ## Usage
 
