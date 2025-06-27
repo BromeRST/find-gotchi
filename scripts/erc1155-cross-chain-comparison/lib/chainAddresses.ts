@@ -1,8 +1,8 @@
 export const baseSepoliaAddresses = {
   ghst: '0xe97f36a00058aa7dfc4e85d23532c3f70453a7ae',
-  aavegotchiDiamond: '0x8804AD8031dD98f4968dBD4ffBc129bCeEfd20fC',
+  aavegotchiDiamond: '0x16684d57314Cb70658390ff6b61D2eE98747129d',
   forgeDiamond: '0xACeb357f79A7C84b0aac41CD36399625538d91C1',
-  wearableDiamond: '0x725CC5175ab79bF57f3088A2a095cf8B339BfE23',
+  wearableDiamond: '0x690FBcC024dB6243576e31E2E8E88a0F7f988345',
 
   fudContract: '0x98810DD548cd39213A609ef373c7eBD5524b32F8',
   fomoContract: '0xe67A189A9efF5B72B236ECf7B1Ac249d3496e31E',

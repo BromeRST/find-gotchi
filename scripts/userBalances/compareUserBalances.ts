@@ -3,6 +3,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import dotenv from 'dotenv';
 import { ownerContractAddressesOnPolygon } from '../lib';
+import { polygonAddresses } from '../erc1155-cross-chain-comparison/lib/chainAddresses';
+import { ethers } from 'ethers';
+import { vaultAbi } from './vaultAbi';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -79,12 +82,14 @@ interface UserComparison {
   };
 }
 
+const VAULT_ADDRESS = '0xdd564df884fd4e217c9ee6f65b4ba6e5641eac63';
+
 // Configuration - these will need to be provided
 const config = {
   subgraph1Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/api`,
-  subgraph2Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-2/api`,
+  subgraph2Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-6/api`,
   blockNumber1: 73121283,
-  blockNumber2: 27493601,
+  blockNumber2: 27598240,
   batchSize: 1000,
 };
 
@@ -112,7 +117,7 @@ const parcelQuery = `
   }
 `;
 
-const queryToUse = parcelQuery;
+const queryToUse = gotchiQuery;
 
 const USERS_QUERY = `
   query GetUsers($first: Int!, $skip: Int!, $block: Block_height) {
@@ -455,6 +460,79 @@ function compareUsers(user1: User, user2: User): UserComparison | null {
   return hasDifferences ? { userId: safeUser1.id, differences } : null;
 }
 
+async function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function retryWithDelay<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const isRateLimit =
+        error?.info?.error?.message?.includes('rate limit') ||
+        error?.message?.includes('rate limit') ||
+        error?.code === 'CALL_EXCEPTION';
+
+      if (attempt === maxRetries || !isRateLimit) {
+        throw error;
+      }
+
+      const delayMs = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+      console.log(`Rate limit hit, retrying in ${delayMs}ms (attempt ${attempt}/${maxRetries})`);
+      await delay(delayMs);
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+
+export async function getVaultOwner(tokenIds: string[]) {
+  const polygonProvider = new ethers.JsonRpcProvider(process.env.POLYGON_RPC_URL);
+  const vault = new ethers.Contract(VAULT_ADDRESS, vaultAbi, polygonProvider);
+  const owners: Record<string, string> = {};
+  const batchSize = 10; // Process in smaller batches
+  const delayBetweenCalls = 200; // 200ms delay between calls
+
+  console.log(`Processing ${tokenIds.length} tokens in batches of ${batchSize}...`);
+
+  for (let i = 0; i < tokenIds.length; i += batchSize) {
+    const batch = tokenIds.slice(i, i + batchSize);
+    console.log(
+      `Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(tokenIds.length / batchSize)} (${batch.length} tokens)`
+    );
+
+    for (const tokenId of batch) {
+      try {
+        const owner = await retryWithDelay(async () => {
+          return await vault.getDepositor(polygonAddresses.aavegotchiDiamond, tokenId);
+        });
+        owners[tokenId] = owner.toLowerCase();
+
+        // Add delay between calls to avoid rate limiting
+        if (tokenId !== batch[batch.length - 1]) {
+          // Don't delay after last item in batch
+          await delay(delayBetweenCalls);
+        }
+      } catch (error) {
+        console.error(`Error getting vault owner for token ${tokenId} after retries:`, error);
+      }
+    }
+
+    // Longer delay between batches
+    if (i + batchSize < tokenIds.length) {
+      console.log('Waiting 2 seconds before next batch...');
+      await delay(2000);
+    }
+  }
+
+  console.log(`Found ${Object.keys(owners).length} vault owners out of ${tokenIds.length} tokens`);
+  return owners;
+}
+
 function processLendingsAndUpdateOriginalOwners(
   users: Map<string, User>,
   lendings: GotchiLending[]
@@ -514,6 +592,68 @@ function processLendingsAndUpdateOriginalOwners(
   console.log(`Updated ${updatedCount} gotchis based on lending information`);
 }
 
+async function processVaultOwnersAndUpdateOriginalOwners(users: Map<string, User>): Promise<void> {
+  console.log('Processing vault owners for gotchis...');
+
+  // Check if we have access to ethers (this function might need to be called differently in actual usage)
+  // For now, we'll create a placeholder that can be updated when ethers is available
+  try {
+    // Collect all gotchi token IDs where the current user is the vault address
+    const vaultGotchis: string[] = [];
+    const vaultAddress = VAULT_ADDRESS.toLowerCase();
+
+    // Find all gotchis owned by the vault address
+    const vaultUser = users.get(vaultAddress);
+    if (vaultUser?.gotchisOriginalOwned) {
+      vaultUser.gotchisOriginalOwned.forEach(gotchi => {
+        vaultGotchis.push(gotchi.id);
+      });
+    }
+
+    console.log(`Found ${vaultGotchis.length} gotchis owned by vault address`);
+
+    if (vaultGotchis.length === 0) {
+      console.log('No gotchis found in vault, skipping vault owner processing');
+      return;
+    }
+
+    // Get real owners for gotchis stored in the vault
+    console.log(`Resolving real owners for ${vaultGotchis.length} gotchis in vault...`);
+    const vaultOwners = await getVaultOwner(vaultGotchis);
+
+    // Remove gotchis from vault user
+    if (vaultUser) {
+      vaultUser.gotchisOriginalOwned = [];
+    }
+
+    // Add gotchis to their real original owners
+    Object.entries(vaultOwners).forEach(([tokenId, realOwner]) => {
+      const realOwnerLower = realOwner.toLowerCase();
+
+      if (!users.has(realOwnerLower)) {
+        users.set(realOwnerLower, {
+          id: realOwnerLower,
+          gotchisOriginalOwned: [],
+          portalsOwned: [],
+          parcelsOwned: [],
+          fakeGotchiCardBalances: [],
+          fakeGotchiNFTTokens: [],
+        });
+      }
+
+      const realOwnerUser = users.get(realOwnerLower)!;
+      if (!realOwnerUser.gotchisOriginalOwned) {
+        realOwnerUser.gotchisOriginalOwned = [];
+      }
+      realOwnerUser.gotchisOriginalOwned.push({ id: tokenId });
+    });
+
+    console.log(`Updated ${Object.keys(vaultOwners).length} gotchis from vault to real owners`);
+  } catch (error) {
+    console.error('Error processing vault owners:', error);
+  }
+}
+
 async function main() {
   console.log('Starting user balance comparison...');
   console.log('Configuration:', {
@@ -539,6 +679,41 @@ async function main() {
       fetchAllUsersFromSubgraph(config.subgraph2Url, config.blockNumber2),
     ]);
 
+    // Calculate total IDs found on each chain based on current query type
+    let totalIds1 = 0;
+    let totalIds2 = 0;
+
+    users1.forEach(user => {
+      if (queryToUse.includes('gotchisOriginalOwned')) {
+        totalIds1 += user.gotchisOriginalOwned?.length || 0;
+      } else if (queryToUse.includes('portalsOwned')) {
+        totalIds1 += user.portalsOwned?.length || 0;
+      } else if (queryToUse.includes('parcelsOwned')) {
+        totalIds1 += user.parcelsOwned?.length || 0;
+      } else if (queryToUse.includes('fakeGotchiCardBalances')) {
+        totalIds1 += user.fakeGotchiCardBalances?.length || 0;
+      } else if (queryToUse.includes('fakeGotchiNFTTokens')) {
+        totalIds1 += user.fakeGotchiNFTTokens?.length || 0;
+      }
+    });
+
+    users2.forEach(user => {
+      if (queryToUse.includes('gotchisOriginalOwned')) {
+        totalIds2 += user.gotchisOriginalOwned?.length || 0;
+      } else if (queryToUse.includes('portalsOwned')) {
+        totalIds2 += user.portalsOwned?.length || 0;
+      } else if (queryToUse.includes('parcelsOwned')) {
+        totalIds2 += user.parcelsOwned?.length || 0;
+      } else if (queryToUse.includes('fakeGotchiCardBalances')) {
+        totalIds2 += user.fakeGotchiCardBalances?.length || 0;
+      } else if (queryToUse.includes('fakeGotchiNFTTokens')) {
+        totalIds2 += user.fakeGotchiNFTTokens?.length || 0;
+      }
+    });
+
+    console.log(`Total IDs found in subgraph1: ${totalIds1}`);
+    console.log(`Total IDs found in subgraph2: ${totalIds2}`);
+
     // Fetch gotchi lendings only from subgraph1 (Polygon) if querying gotchis
     const isGotchiQuery = queryToUse.includes('gotchisOriginalOwned');
     if (isGotchiQuery) {
@@ -550,6 +725,10 @@ async function main() {
 
       // Process lendings and update original owners for subgraph1 only
       processLendingsAndUpdateOriginalOwners(users1, lendings1);
+
+      // Handle vault owners for gotchis on polygon (subgraph1)
+      console.log('Processing vault owners for gotchis on polygon...');
+      await processVaultOwnersAndUpdateOriginalOwners(users1);
     } else {
       console.log('Non-gotchi query detected - skipping gotchi lendings fetch');
     }
@@ -645,6 +824,8 @@ async function main() {
         usersWithDifferences: differences.length,
         usersOnlyInSubgraph1Count: usersOnlyInSubgraph1.length,
         usersOnlyInSubgraph2Count: usersOnlyInSubgraph2.length,
+        totalIdsSubgraph1: totalIds1,
+        totalIdsSubgraph2: totalIds2,
       },
       usersOnlyInSubgraph1,
       usersOnlyInSubgraph2,

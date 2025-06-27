@@ -11,7 +11,7 @@ import { ownerContractAddressesOnPolygon } from '../lib';
 dotenv.config();
 
 const subgraphEndpoint = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/version/matic-add-owners-to-wearables-6/api`;
-const sepoliaSgEndpoint = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-3/api`;
+// const sepoliaSgEndpoint = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-6/api`;
 
 interface Owner {
   owner: string;
@@ -73,6 +73,10 @@ interface ComparisonResult {
     polygon: ChainSpecificData;
     baseSepolia: ChainSpecificData;
   };
+  missingItems: {
+    missingFromBaseSepolia: string[]; // Items that exist on Polygon but not on Base Sepolia
+    missingFromPolygon: string[]; // Items that exist on Base Sepolia but not on Polygon
+  };
   discrepancies: CrossChainDiscrepancy[];
 }
 
@@ -81,9 +85,24 @@ const ERC1155_ABI = [
   'function balanceOfBatch(address[] calldata accounts, uint256[] calldata ids) external view returns (uint256[] memory)',
 ];
 
+// Provider pool to reuse connections and avoid "failed to detect network" issues
+const providerPool = new Map<string, ethers.JsonRpcProvider>();
+
+function getProvider(rpcUrl: string): ethers.JsonRpcProvider {
+  if (!providerPool.has(rpcUrl)) {
+    const provider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
+      staticNetwork: true, // Avoid network detection on each call
+    });
+    providerPool.set(rpcUrl, provider);
+  }
+  return providerPool.get(rpcUrl)!;
+}
+
 const BATCH_SIZE = 50;
 const REQUEST_DELAY = 250; // 250ms between requests to avoid rate limiting
 const CONTRACT_CALL_DELAY = 500; // 500ms between contract calls
+const MAX_RETRIES = 3; // Maximum number of retries for failed requests
+const RETRY_BASE_DELAY = 1000; // Base delay for exponential backoff (1 second)
 
 // Create a set of addresses to exclude from comparison
 const EXCLUDED_ADDRESSES = new Set([
@@ -142,7 +161,7 @@ function getChainConfigs(): ChainConfig[] {
     },
     {
       name: 'Base Sepolia',
-      subgraphEndpoint: sepoliaSgEndpoint,
+      subgraphEndpoint: '', // Not used - we'll use Polygon owners for both chains
       rpcUrl: process.env.BASE_SEPOLIA_RPC_URL!,
       contractAddress: baseSepoliaAddresses.wearableDiamond,
       blockNumber: undefined, // Set manually if needed: e.g., 10000000
@@ -156,6 +175,46 @@ function isAddressExcluded(address: string): boolean {
 
 async function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = MAX_RETRIES,
+  baseDelay: number = RETRY_BASE_DELAY,
+  operationName: string = 'operation'
+): Promise<T> {
+  let lastError: Error;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+
+      if (attempt === maxRetries) {
+        console.error(
+          chalk.red(
+            `❌ ${operationName} failed after ${maxRetries + 1} attempts:`,
+            lastError.message
+          )
+        );
+        throw lastError;
+      }
+
+      // Calculate exponential backoff delay
+      const delayMs = baseDelay * Math.pow(2, attempt);
+      console.log(
+        chalk.yellow(
+          `⚠️  ${operationName} failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delayMs}ms...`
+        )
+      );
+      console.log(chalk.gray(`   Error: ${lastError.message}`));
+
+      await delay(delayMs);
+    }
+  }
+
+  throw lastError!;
 }
 
 async function fetchAllOwnersForItem(chainConfig: ChainConfig, itemId: string): Promise<Owner[]> {
@@ -237,30 +296,27 @@ async function checkContractBalancesBatch(
   addresses: string[],
   itemId: string
 ): Promise<string[]> {
-  try {
-    const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
-    const contract = new ethers.Contract(chainConfig.contractAddress, ERC1155_ABI, provider);
-    const ids = new Array(addresses.length).fill(itemId);
+  return await retryWithBackoff(
+    async () => {
+      const provider = getProvider(chainConfig.rpcUrl);
+      const contract = new ethers.Contract(chainConfig.contractAddress, ERC1155_ABI, provider);
+      const ids = new Array(addresses.length).fill(itemId);
 
-    // Call balanceOfBatch at specific block if specified
-    let balances;
-    if (chainConfig.blockNumber) {
-      balances = await contract.balanceOfBatch(addresses, ids, {
-        blockTag: chainConfig.blockNumber,
-      });
-    } else {
-      balances = await contract.balanceOfBatch(addresses, ids);
-    }
-    return balances.map((balance: bigint) => balance.toString());
-  } catch (error) {
-    console.error(
-      chalk.red(
-        `Error checking contract balances batch for item ${itemId} on ${chainConfig.name}:`
-      ),
-      error
-    );
-    throw error;
-  }
+      // Call balanceOfBatch at specific block if specified
+      let balances;
+      if (chainConfig.blockNumber) {
+        balances = await contract.balanceOfBatch(addresses, ids, {
+          blockTag: chainConfig.blockNumber,
+        });
+      } else {
+        balances = await contract.balanceOfBatch(addresses, ids);
+      }
+      return balances.map((balance: bigint) => balance.toString());
+    },
+    MAX_RETRIES,
+    RETRY_BASE_DELAY,
+    `Contract balance batch check for item ${itemId} on ${chainConfig.name}`
+  );
 }
 
 async function analyzeItem(chainConfig: ChainConfig, itemId: string): Promise<ItemAnalysis> {
@@ -283,10 +339,34 @@ async function analyzeItem(chainConfig: ChainConfig, itemId: string): Promise<It
     };
   }
 
+  return await analyzeItemWithOwners(chainConfig, itemId, subgraphOwners);
+}
+
+async function analyzeItemWithOwners(
+  chainConfig: ChainConfig,
+  itemId: string,
+  subgraphOwners: Owner[]
+): Promise<ItemAnalysis> {
+  const blockInfo = chainConfig.blockNumber ? ` at block ${chainConfig.blockNumber}` : '';
+  console.log(
+    chalk.blue(
+      `📊 Checking contract balances for item ${itemId} on ${chainConfig.name}${blockInfo} (${subgraphOwners.length} addresses)`
+    )
+  );
+
+  if (subgraphOwners.length === 0) {
+    return {
+      chain: chainConfig.name,
+      itemId,
+      totalSubgraphOwners: 0,
+      totalContractOwners: 0,
+      errors: 0,
+      owners: [],
+    };
+  }
+
   const ownerBalances: OwnerBalance[] = [];
   let errors = 0;
-
-  console.log(chalk.blue(`Checking contract balances for ${subgraphOwners.length} addresses...`));
 
   // Process owners in batches to avoid rate limiting
   for (let i = 0; i < subgraphOwners.length; i += BATCH_SIZE) {
@@ -311,7 +391,7 @@ async function analyzeItem(chainConfig: ChainConfig, itemId: string): Promise<It
       }
 
       console.log(
-        `  Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(subgraphOwners.length / BATCH_SIZE)}`
+        `  Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(subgraphOwners.length / BATCH_SIZE)} on ${chainConfig.name}`
       );
 
       // Rate limiting between batches
@@ -319,7 +399,10 @@ async function analyzeItem(chainConfig: ChainConfig, itemId: string): Promise<It
         await delay(CONTRACT_CALL_DELAY);
       }
     } catch (error) {
-      console.error(chalk.red(`Error processing batch starting at index ${i}:`), error);
+      console.error(
+        chalk.red(`Error processing batch starting at index ${i} on ${chainConfig.name}:`),
+        error
+      );
       errors += batch.length;
     }
   }
@@ -492,6 +575,17 @@ function compareChainResults(
     balanceMismatch: discrepancies.filter(d => d.discrepancyType === 'balance_mismatch').length,
   };
 
+  // Calculate missing items between chains
+  const polygonItemIds = new Set(polygonContractBalancesByItem.keys());
+  const baseSepoliaItemIds = new Set(baseSepoliaContractBalancesByItem.keys());
+
+  const missingFromBaseSepolia = [...polygonItemIds]
+    .filter(itemId => !baseSepoliaItemIds.has(itemId))
+    .sort((a, b) => parseInt(a) - parseInt(b));
+  const missingFromPolygon = [...baseSepoliaItemIds]
+    .filter(itemId => !polygonItemIds.has(itemId))
+    .sort((a, b) => parseInt(a) - parseInt(b));
+
   // Calculate chain-specific data
   const allPolygonOwners = new Set<string>();
   const allBaseSepoliaOwners = new Set<string>();
@@ -536,6 +630,10 @@ function compareChainResults(
     totalDiscrepancies: discrepancies.length,
     discrepancyBreakdown: breakdown,
     chainSpecificData,
+    missingItems: {
+      missingFromBaseSepolia,
+      missingFromPolygon,
+    },
     discrepancies,
   };
 }
@@ -556,61 +654,69 @@ async function saveComparisonResults(comparisonResult: ComparisonResult): Promis
   console.log(chalk.green(`\n💾 Comparison results saved to: ${filepath}`));
 }
 
-async function analyzeAllWearables(): Promise<void> {
-  console.log(chalk.cyan.bold('🚀 Starting Cross-Chain Wearables Comparison\n'));
-  console.log(chalk.blue('📝 Note: Subgraph is used only to discover owner addresses.'));
-  console.log(chalk.blue('📊 Comparison is based exclusively on contract balances.\n'));
+async function analyzeMigrationComparison(): Promise<void> {
+  console.log(chalk.cyan.bold('🚀 Starting Cross-Chain Migration Comparison\n'));
+  console.log(chalk.blue('📝 Using Polygon owners to check balances on both chains.'));
+  console.log(chalk.blue('📊 This will verify if the migration worked correctly.\n'));
 
   try {
     validateEnvironment();
     const chains = getChainConfigs();
-    const analysesByChain = new Map<string, ItemAnalysis[]>();
+    const polygonConfig = chains.find(c => c.name === 'Polygon')!;
+    const baseSepoliaConfig = chains.find(c => c.name === 'Base Sepolia')!;
 
-    // Analyze each chain
-    for (const chainConfig of chains) {
-      console.log(chalk.magenta.bold(`\n🔗 Analyzing ${chainConfig.name}\n`));
+    // Get all items with owners from Polygon
+    console.log(chalk.magenta.bold(`\n🔗 Finding items with owners on Polygon\n`));
+    const itemIds = await findItemsWithOwners(polygonConfig);
 
-      const chainAnalyses: ItemAnalysis[] = [];
+    const migrationAnalyses: { polygon: ItemAnalysis[]; baseSepolia: ItemAnalysis[] } = {
+      polygon: [],
+      baseSepolia: [],
+    };
 
-      // Find all items that have owners on this chain
-      const itemIds = await findItemsWithOwners(chainConfig);
+    // For each item, get owners from Polygon and check balances on both chains
+    for (const itemId of itemIds) {
+      try {
+        console.log(chalk.cyan.bold(`\n🔍 Analyzing Migration for Item ID: ${itemId}`));
 
-      // Analyze each item that has owners
-      for (const itemId of itemIds) {
-        try {
-          const analysis = await analyzeItem(chainConfig, itemId);
-          chainAnalyses.push(analysis);
+        // Get owners from Polygon subgraph
+        const polygonOwners = await fetchAllOwnersForItem(polygonConfig, itemId);
 
-          // Add delay between items to avoid overwhelming the provider
-          await delay(REQUEST_DELAY);
-        } catch (error) {
-          console.error(
-            chalk.red(`Failed to analyze item ${itemId} on ${chainConfig.name}:`),
-            error
-          );
+        if (polygonOwners.length === 0) {
+          console.log(chalk.yellow(`No owners found for item ${itemId} on Polygon`));
+          continue;
         }
+
+        // Check balances on both chains using the same owner addresses
+        const polygonAnalysis = await analyzeItemWithOwners(polygonConfig, itemId, polygonOwners);
+        const baseSepoliaAnalysis = await analyzeItemWithOwners(
+          baseSepoliaConfig,
+          itemId,
+          polygonOwners
+        );
+
+        migrationAnalyses.polygon.push(polygonAnalysis);
+        migrationAnalyses.baseSepolia.push(baseSepoliaAnalysis);
+
+        // Add delay between items
+        await delay(REQUEST_DELAY);
+      } catch (error) {
+        console.error(chalk.red(`Failed to analyze migration for item ${itemId}:`), error);
       }
-
-      analysesByChain.set(chainConfig.name, chainAnalyses);
-
-      // Add longer delay between chains
-      await delay(CONTRACT_CALL_DELAY * 2);
     }
 
     // Print individual chain summaries
-    const allAnalyses: ItemAnalysis[] = [];
-    for (const [chainName, analyses] of analysesByChain) {
-      allAnalyses.push(...analyses);
-      console.log(chalk.yellow.bold(`\n📊 ${chainName} Individual Summary:`));
-      printChainSummary(analyses);
-    }
+    console.log(chalk.yellow.bold(`\n📊 Polygon Summary:`));
+    printChainSummary(migrationAnalyses.polygon);
+    console.log(chalk.yellow.bold(`\n📊 Base Sepolia Summary:`));
+    printChainSummary(migrationAnalyses.baseSepolia);
 
     // Perform cross-chain comparison
-    const polygonAnalyses = analysesByChain.get('Polygon') || [];
-    const baseSepoliaAnalyses = analysesByChain.get('Base Sepolia') || [];
-
-    console.log(chalk.cyan.bold('\n🔄 Performing Cross-Chain Comparison...\n'));
-    const comparisonResult = compareChainResults(polygonAnalyses, baseSepoliaAnalyses);
+    console.log(chalk.cyan.bold('\n🔄 Performing Migration Comparison...\n'));
+    const comparisonResult = compareChainResults(
+      migrationAnalyses.polygon,
+      migrationAnalyses.baseSepolia
+    );
 
     // Save comparison results to JSON
     await saveComparisonResults(comparisonResult);
@@ -618,7 +724,7 @@ async function analyzeAllWearables(): Promise<void> {
     // Print comparison summary
     printComparisonSummary(comparisonResult);
   } catch (error) {
-    console.error(chalk.red('Fatal error during analysis:'), error);
+    console.error(chalk.red('Fatal error during migration analysis:'), error);
   }
 }
 
@@ -670,6 +776,42 @@ function printComparisonSummary(comparisonResult: ComparisonResult): void {
     `  Balance mismatches: ${chalk.red(comparisonResult.discrepancyBreakdown.balanceMismatch)}`
   );
 
+  console.log('\nMissing Items:');
+  console.log(
+    `  Items missing from Base Sepolia: ${chalk.yellow(comparisonResult.missingItems.missingFromBaseSepolia.length)}`
+  );
+  console.log(
+    `  Items missing from Polygon: ${chalk.blue(comparisonResult.missingItems.missingFromPolygon.length)}`
+  );
+
+  if (comparisonResult.missingItems.missingFromBaseSepolia.length > 0) {
+    console.log('\n  Items missing from Base Sepolia (first 20):');
+    const itemsToShow = comparisonResult.missingItems.missingFromBaseSepolia.slice(0, 20);
+    for (let i = 0; i < itemsToShow.length; i += 10) {
+      const batch = itemsToShow.slice(i, i + 10);
+      console.log(`    ${batch.join(', ')}`);
+    }
+    if (comparisonResult.missingItems.missingFromBaseSepolia.length > 20) {
+      console.log(
+        `    ... and ${comparisonResult.missingItems.missingFromBaseSepolia.length - 20} more`
+      );
+    }
+  }
+
+  if (comparisonResult.missingItems.missingFromPolygon.length > 0) {
+    console.log('\n  Items missing from Polygon (first 20):');
+    const itemsToShow = comparisonResult.missingItems.missingFromPolygon.slice(0, 20);
+    for (let i = 0; i < itemsToShow.length; i += 10) {
+      const batch = itemsToShow.slice(i, i + 10);
+      console.log(`    ${batch.join(', ')}`);
+    }
+    if (comparisonResult.missingItems.missingFromPolygon.length > 20) {
+      console.log(
+        `    ... and ${comparisonResult.missingItems.missingFromPolygon.length - 20} more`
+      );
+    }
+  }
+
   if (comparisonResult.totalDiscrepancies > 0) {
     console.log('\nTop 10 Items with Most Discrepancies:');
     const discrepanciesByItem = new Map<string, number>();
@@ -698,7 +840,7 @@ function printComparisonSummary(comparisonResult: ComparisonResult): void {
 // Main execution
 async function main() {
   try {
-    await analyzeAllWearables();
+    await analyzeMigrationComparison();
   } catch (error) {
     console.error(chalk.red('Error in main execution:'), error);
     process.exit(1);
