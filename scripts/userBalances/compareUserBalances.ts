@@ -13,6 +13,9 @@ dotenv.config();
 // Convert to Set for faster lookup and make case-insensitive
 const excludedAddresses = new Set(ownerContractAddressesOnPolygon.map(addr => addr.toLowerCase()));
 
+// Add the 0 address to exclusions
+excludedAddresses.add('0x0000000000000000000000000000000000000000');
+
 // Types for the user data structure based on your query
 interface User {
   id: string;
@@ -43,6 +46,17 @@ interface GotchiLending {
 
 interface GotchiLendingsQueryResult {
   gotchiLendings: GotchiLending[];
+}
+
+interface EthereumAavegotchi {
+  id: string;
+  owner: {
+    id: string;
+  };
+}
+
+interface EthereumAavegotchisQueryResult {
+  aavegotchis: EthereumAavegotchi[];
 }
 
 interface UserComparison {
@@ -83,13 +97,14 @@ interface UserComparison {
 }
 
 const VAULT_ADDRESS = '0xdd564df884fd4e217c9ee6f65b4ba6e5641eac63';
+const ethSubgraphUrl = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-ethereum/api`;
 
 // Configuration - these will need to be provided
 const config = {
   subgraph1Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/api`,
   subgraph2Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-6/api`,
   blockNumber1: 73121283,
-  blockNumber2: 27598240,
+  blockNumber2: 27634438,
   batchSize: 1000,
 };
 
@@ -149,6 +164,21 @@ const GOTCHI_LENDINGS_QUERY = `
         originalOwner {
           id
         }
+      }
+    }
+  }
+`;
+
+const ETHEREUM_AAVEGOTCHIS_QUERY = `
+  query GetEthereumAavegotchis($first: Int!, $skip: Int!) {
+    aavegotchis(
+      first: $first, 
+      skip: $skip,
+      orderBy: owner__id
+    ) {
+      id
+      owner {
+        id
       }
     }
   }
@@ -284,6 +314,66 @@ async function fetchAllGotchiLendingsFromSubgraph(
 
   console.log(`Total gotchi lendings fetched from ${subgraphUrl}: ${allLendings.length}`);
   return allLendings;
+}
+
+async function fetchEthereumAavegotchisFromSubgraph(
+  client: GraphQLClient,
+  skip: number,
+  first: number
+): Promise<EthereumAavegotchi[]> {
+  try {
+    const variables: any = {
+      first,
+      skip,
+    };
+
+    const result: EthereumAavegotchisQueryResult = await client.request(
+      ETHEREUM_AAVEGOTCHIS_QUERY,
+      variables
+    );
+    return result.aavegotchis;
+  } catch (error) {
+    console.error(`Error fetching ethereum aavegotchis from subgraph (skip: ${skip}):`, error);
+    throw error;
+  }
+}
+
+async function fetchAllEthereumAavegotchisFromSubgraph(
+  subgraphUrl: string
+): Promise<Map<string, string>> {
+  const client = new GraphQLClient(subgraphUrl);
+  const allGotchis = new Map<string, string>(); // tokenId -> ownerId
+  let skip = 0;
+  let hasMore = true;
+
+  console.log(`Fetching aavegotchis from Ethereum subgraph: ${subgraphUrl}...`);
+
+  while (hasMore) {
+    console.log(`Fetching ethereum gotchis batch: skip=${skip}, first=${config.batchSize}`);
+
+    const gotchis = await fetchEthereumAavegotchisFromSubgraph(client, skip, config.batchSize);
+
+    if (gotchis.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    gotchis.forEach(gotchi => {
+      allGotchis.set(gotchi.id, gotchi.owner.id.toLowerCase());
+    });
+
+    console.log(`Fetched ${gotchis.length} ethereum gotchis. Total so far: ${allGotchis.size}`);
+
+    // If we got fewer gotchis than requested, we've reached the end
+    if (gotchis.length < config.batchSize) {
+      hasMore = false;
+    }
+
+    skip += config.batchSize;
+  }
+
+  console.log(`Total ethereum aavegotchis fetched: ${allGotchis.size}`);
+  return allGotchis;
 }
 
 function compareArrays<T>(
@@ -654,6 +744,68 @@ async function processVaultOwnersAndUpdateOriginalOwners(users: Map<string, User
   }
 }
 
+function updatePolygonOriginalOwnersFromEthereum(
+  polygonUsers: Map<string, User>,
+  ethereumGotchiOwners: Map<string, string>
+): void {
+  console.log(
+    `Updating Polygon original owners based on ${ethereumGotchiOwners.size} Ethereum gotchis...`
+  );
+
+  let updatedCount = 0;
+  const gotchisToMove: Array<{ tokenId: string; fromUser: string; toUser: string }> = [];
+
+  // First, identify all gotchis that need to be moved
+  polygonUsers.forEach((user, userId) => {
+    if (user.gotchisOriginalOwned) {
+      user.gotchisOriginalOwned.forEach(gotchi => {
+        const ethereumOwner = ethereumGotchiOwners.get(gotchi.id);
+        if (ethereumOwner && ethereumOwner !== userId) {
+          gotchisToMove.push({
+            tokenId: gotchi.id,
+            fromUser: userId,
+            toUser: ethereumOwner,
+          });
+        }
+      });
+    }
+  });
+
+  // Execute the moves
+  gotchisToMove.forEach(({ tokenId, fromUser, toUser }) => {
+    // Remove from current user
+    const currentUser = polygonUsers.get(fromUser);
+    if (currentUser?.gotchisOriginalOwned) {
+      currentUser.gotchisOriginalOwned = currentUser.gotchisOriginalOwned.filter(
+        g => g.id !== tokenId
+      );
+    }
+
+    // Add to ethereum owner (create user if doesn't exist)
+    if (!polygonUsers.has(toUser)) {
+      polygonUsers.set(toUser, {
+        id: toUser,
+        gotchisOriginalOwned: [],
+        portalsOwned: [],
+        parcelsOwned: [],
+        fakeGotchiCardBalances: [],
+        fakeGotchiNFTTokens: [],
+      });
+    }
+
+    const targetUser = polygonUsers.get(toUser)!;
+    if (!targetUser.gotchisOriginalOwned) {
+      targetUser.gotchisOriginalOwned = [];
+    }
+    targetUser.gotchisOriginalOwned.push({ id: tokenId });
+
+    updatedCount++;
+    console.log(`Updated gotchi ${tokenId}: moved from ${fromUser} to ethereum owner ${toUser}`);
+  });
+
+  console.log(`Updated ${updatedCount} gotchis based on Ethereum ownership data`);
+}
+
 async function main() {
   console.log('Starting user balance comparison...');
   console.log('Configuration:', {
@@ -729,6 +881,13 @@ async function main() {
       // Handle vault owners for gotchis on polygon (subgraph1)
       console.log('Processing vault owners for gotchis on polygon...');
       await processVaultOwnersAndUpdateOriginalOwners(users1);
+
+      // Fetch gotchis from Ethereum subgraph to get original owners
+      console.log('Fetching gotchis from Ethereum subgraph to update original owners...');
+      const ethereumGotchiOwners = await fetchAllEthereumAavegotchisFromSubgraph(ethSubgraphUrl);
+
+      // Update Polygon users' original owners based on Ethereum data
+      updatePolygonOriginalOwnersFromEthereum(users1, ethereumGotchiOwners);
     } else {
       console.log('Non-gotchi query detected - skipping gotchi lendings fetch');
     }
