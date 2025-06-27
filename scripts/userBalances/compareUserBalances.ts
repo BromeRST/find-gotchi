@@ -79,8 +79,12 @@ async function main() {
     }
   });
 
+  console.log(`Total IDs found in subgraph1: ${totalIds1}`);
+  console.log(`Total IDs found in subgraph2: ${totalIds2}`);
+
   const isGotchiQuery = queryToUse.includes('gotchisOriginalOwned');
   if (isGotchiQuery) {
+    console.log('Detected gotchi query - fetching gotchi lendings...');
     const lendings1 = await fetchAllGotchiLendingsFromSubgraph(
       config.subgraph1Url,
       config.batchSize,
@@ -93,12 +97,16 @@ async function main() {
       config.batchSize
     );
     updatePolygonOriginalOwnersFromEthereum(users1, ethereumGotchiOwners);
+  } else {
+    console.log('Non-gotchi query detected - skipping gotchi lendings fetch');
   }
 
   const excludedCount1 = users1.size;
   excludedAddresses.forEach(addr => users1.delete(addr));
   const excludedCount2 = users2.size;
   excludedAddresses.forEach(addr => users2.delete(addr));
+  console.log(`Excluded ${excludedCount1 - users1.size} contract addresses from subgraph1`);
+  console.log(`Excluded ${excludedCount2 - users2.size} contract addresses from subgraph2`);
 
   const filteredUsers1 = new Map<string, User>();
   let usersWithoutBalances1 = 0;
@@ -121,7 +129,16 @@ async function main() {
       usersWithoutBalances2++;
     }
   });
+  console.log(`\nComparison Summary:`);
+  console.log(`Users in subgraph 1 (total): ${users1.size}`);
+  console.log(`Users in subgraph 1 (with balances): ${filteredUsers1.size}`);
+  console.log(`Users in subgraph 1 (without balances, excluded): ${usersWithoutBalances1}`);
+  console.log(`Users in subgraph 2 (total): ${users2.size}`);
+  console.log(`Users in subgraph 2 (with balances): ${filteredUsers2.size}`);
+  console.log(`Users in subgraph 2 (without balances, excluded): ${usersWithoutBalances2}`);
+
   const allUserIds = new Set([...filteredUsers1.keys(), ...filteredUsers2.keys()]);
+  console.log(`Total unique users (after filtering): ${allUserIds.size}`);
 
   const differences = [] as any[];
   const usersOnlyInSubgraph1: string[] = [];
@@ -189,7 +206,20 @@ async function main() {
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, JSON.stringify(results, null, 2));
 
-  console.log(`Results saved to: ${outputPath}`);
+  console.log(`\nResults saved to: ${outputPath}`);
+  console.log(`Found ${differences.length} users with differences`);
+  console.log(`Found ${usersOnlyInSubgraph1.length} users only in subgraph 1`);
+  console.log(`Found ${usersOnlyInSubgraph2.length} users only in subgraph 2`);
+
+  if (differences.length > 0) {
+    console.log('\nSample differences:');
+    differences.slice(0, 3).forEach(diff => {
+      console.log(`User ${diff.userId}:`);
+      Object.entries(diff.differences).forEach(([key, value]) => {
+        console.log(`  ${key}: ${JSON.stringify(value, null, 2)}`);
+      });
+    });
+  }
 }
 
 if (require.main === module) {

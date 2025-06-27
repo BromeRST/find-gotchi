@@ -34,7 +34,9 @@ export async function fetchAllUsersFromSubgraph(
   let skip = 0;
   let hasMore = true;
 
+  console.log(`Fetching users from ${subgraphUrl}...`);
   while (hasMore) {
+    console.log(`Fetching batch: skip=${skip}, first=${batchSize}`);
     const users = await fetchUsersFromSubgraph(client, skip, batchSize, selection, blockNumber);
 
     if (users.length === 0) {
@@ -45,12 +47,16 @@ export async function fetchAllUsersFromSubgraph(
       allUsers.set(user.id, user);
     });
 
+    console.log(`Fetched ${users.length} users. Total so far: ${allUsers.size}`);
+
     if (users.length < batchSize) {
       break;
     }
 
     skip += batchSize;
   }
+
+  console.log(`Total users fetched from ${subgraphUrl}: ${allUsers.size}`);
 
   return allUsers;
 }
@@ -79,7 +85,10 @@ export async function fetchAllGotchiLendingsFromSubgraph(
   let skip = 0;
   let hasMore = true;
 
+  console.log(`Fetching gotchi lendings from ${subgraphUrl}...`);
+
   while (hasMore) {
+    console.log(`Fetching lendings batch: skip=${skip}, first=${batchSize}`);
     const lendings = await fetchGotchiLendingsFromSubgraph(client, skip, batchSize, blockNumber);
 
     if (lendings.length === 0) {
@@ -88,12 +97,16 @@ export async function fetchAllGotchiLendingsFromSubgraph(
 
     allLendings.push(...lendings);
 
+    console.log(`Fetched ${lendings.length} lendings. Total so far: ${allLendings.length}`);
+
     if (lendings.length < batchSize) {
       break;
     }
 
     skip += batchSize;
   }
+
+  console.log(`Total gotchi lendings fetched from ${subgraphUrl}: ${allLendings.length}`);
 
   return allLendings;
 }
@@ -120,7 +133,10 @@ export async function fetchAllEthereumAavegotchisFromSubgraph(
   let skip = 0;
   let hasMore = true;
 
+  console.log(`Fetching aavegotchis from Ethereum subgraph: ${subgraphUrl}...`);
+
   while (hasMore) {
+    console.log(`Fetching ethereum gotchis batch: skip=${skip}, first=${batchSize}`);
     const gotchis = await fetchEthereumAavegotchisFromSubgraph(client, skip, batchSize);
 
     if (gotchis.length === 0) {
@@ -131,12 +147,16 @@ export async function fetchAllEthereumAavegotchisFromSubgraph(
       allGotchis.set(gotchi.id, gotchi.owner.id.toLowerCase());
     });
 
+    console.log(`Fetched ${gotchis.length} ethereum gotchis. Total so far: ${allGotchis.size}`);
+
     if (gotchis.length < batchSize) {
       break;
     }
 
     skip += batchSize;
   }
+
+  console.log(`Total ethereum aavegotchis fetched: ${allGotchis.size}`);
 
   return allGotchis;
 }

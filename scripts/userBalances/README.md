@@ -15,6 +15,7 @@ This script compares user balances between two different subgraphs to identify d
 - Identifies users that exist only in one subgraph
 - Detects differences in balances and values
 - Exports results to a JSON file
+- Prints progress logs for each batch of requests
 
 ## Folder Structure
 
