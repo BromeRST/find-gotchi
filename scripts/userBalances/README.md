@@ -1,37 +1,53 @@
 # User Balance Comparison Script
 
-This script compares user balances between two different subgraphs to identify discrepancies.
+This script performs comprehensive comparison of user balances between two different subgraphs with advanced ownership resolution capabilities.
 
 ## Features
 
+### Core Comparison
+
 - Fetches all users from both subgraphs in batches of 1000
 - Compares the following user data:
+  - `gotchisOriginalOwned` - Aavegotchi tokens with original ownership resolution
+  - `portalsOwned` - Unopened portal tokens only
+  - `parcelsOwned` - REALM parcel tokens with parcelHash data
+  - `fakeGotchiCardBalances` - FakeGotchi card balances with value comparison
+  - `fakeGotchiNFTTokens` - FakeGotchi NFT tokens
 
-  - `gotchisOriginalOwned`
+### Advanced Ownership Resolution
 
-  - `portalsOwned` (unopened only)
-  - `parcelsOwned`
-  - `fakeGotchiCardBalances`
-  - `fakeGotchiNFTTokens`
+- **Vault Processing**: Resolves real owners of gotchis stored in vaults via on-chain calls
+- **Lending Processing**: Updates original ownership for gotchis that are currently lent out
+- **Cross-Chain Integration**: Updates Polygon gotchi ownership based on Ethereum subgraph data
+- **Contract Exclusion**: Automatically excludes known contract addresses from comparison
 
+### Data Processing
+
+- Filters out users with zero balances across all categories
 - Identifies users that exist only in one subgraph
-- Detects differences in balances and values
-- Exports results to a JSON file
-- Prints progress logs for each batch of requests
-- Uses **chalk** and emoji to colorize output for better readability
+- Detects differences in balances, values, and ownership
+- Provides detailed statistics on filtered vs. unfiltered data
+- Supports multiple query types (gotchis, portals, parcels, fakeGotchi)
+
+### Output & Logging
+
+- Exports results to timestamped JSON files with query-type prefixes
+- Comprehensive progress logging with colored output using **chalk** and emoji
+- Detailed metadata including block numbers, user counts, and processing statistics
+- Error handling with retry logic and rate limiting support
 
 ## Folder Structure
 
-The logic is split into several modules. The main script is
-`compareUserBalances.ts` and the supporting utilities live in the `lib` folder:
+The logic is modularized across several files in the `lib` folder:
 
-- `lib/types.ts` - TypeScript interfaces.
-- `lib/queries.ts` - GraphQL query strings.
-- `lib/fetchers.ts` - data retrieval helpers.
-- `lib/compare.ts` - comparison utilities.
-- `lib/owners.ts` - functions for resolving original owners.
-- `lib/utils.ts` - shared helpers.
-- `lib/logger.ts` - simple colored logging helpers.
+- `lib/types.ts` - TypeScript interfaces and type definitions
+- `lib/queries.ts` - GraphQL query strings for different data types
+- `lib/fetchers.ts` - Data retrieval helpers for subgraphs and blockchain
+- `lib/compare.ts` - Comparison utilities and filtering logic
+- `lib/owners.ts` - Advanced ownership resolution (vault, lending, cross-chain)
+- `lib/utils.ts` - Shared utilities including retry logic and delays
+- `lib/logger.ts` - Colored logging helpers
+- `lib/vaultAbi.ts` - Vault contract ABI for on-chain owner resolution
 
 ## Usage
 
@@ -41,9 +57,31 @@ Set the following environment variables before running the script:
 
 ```bash
 export SUBGRAPH_KEY="your-satsuma-subgraph-key"
-export BLOCK_NUMBER_1="123456789"  # Optional: specific block number for subgraph 1
-export BLOCK_NUMBER_2="987654321"  # Optional: specific block number for subgraph 2
+export POLYGON_RPC_URL="your-polygon-rpc-endpoint"  # Required for vault processing
 ```
+
+### Configuration
+
+The script uses a hardcoded configuration object that can be modified:
+
+```typescript
+const config = {
+  subgraph1Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/api`,
+  subgraph2Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-6/api`,
+  blockNumber1: 73121283, // Polygon block number
+  blockNumber2: 27634438, // Base Sepolia block number
+  batchSize: 1000,
+};
+```
+
+### Query Types
+
+Choose which data to compare by setting the `queryToUse` variable:
+
+- `gotchiQuery` - Compare gotchi ownership (includes advanced processing)
+- `portalQuery` - Compare portal ownership (unopened only)
+- `parcelQuery` - Compare parcel ownership
+- `fakegotchiQuery` - Compare FakeGotchi NFT tokens
 
 ### Running the Script
 
@@ -59,15 +97,33 @@ ts-node scripts/userBalances/compareUserBalances.ts
 
 ```bash
 export SUBGRAPH_KEY="your-satsuma-subgraph-key"
-export BLOCK_NUMBER_1="12345678"  # Block number for aavegotchi-core-matic
-export BLOCK_NUMBER_2="87654321"  # Block number for aavegotchi-core-baseSepolia
+export POLYGON_RPC_URL="https://polygon-mainnet.infura.io/v3/your-key"
 
 yarn compare-user-balances
 ```
 
+## Advanced Processing
+
+### Gotchi Ownership Resolution (gotchiQuery only)
+
+When comparing gotchis, the script performs additional processing:
+
+1. **Lending Resolution**: Fetches active gotchi lendings and updates ownership to reflect lenders as original owners
+2. **Vault Resolution**: Makes on-chain calls to resolve real owners of gotchis stored in vaults
+3. **Ethereum Integration**: Fetches Ethereum gotchi ownership data to update Polygon original owners
+
+### Filtering & Exclusions
+
+- **Contract Exclusion**: Removes known contract addresses from comparison
+- **Balance Filtering**: Excludes users with zero balances across all categories
+- **Statistics**: Provides detailed counts of filtered vs. unfiltered users
+
 ## Output
 
-The script creates a JSON file at `data/results/user-balance-comparison.json` with the following structure:
+Results are saved to `data/results/users/` with the following naming convention:
+`{query-type}-comparison-{YYYY-MM-DD}.json`
+
+Example output structure:
 
 ```json
 {
@@ -75,14 +131,20 @@ The script creates a JSON file at `data/results/user-balance-comparison.json` wi
     "timestamp": "2024-01-01T00:00:00.000Z",
     "subgraph1Url": "...",
     "subgraph2Url": "...",
-    "blockNumber1": 123456789,
-    "blockNumber2": 987654321,
-    "totalUsersSubgraph1": 1000,
-    "totalUsersSubgraph2": 1000,
-    "totalUniqueUsers": 1000,
-    "usersWithDifferences": 50,
-    "usersOnlyInSubgraph1Count": 10,
-    "usersOnlyInSubgraph2Count": 5
+    "blockNumber1": 73121283,
+    "blockNumber2": 27634438,
+    "totalUsersSubgraph1": 15000,
+    "usersWithBalancesSubgraph1": 12000,
+    "usersWithoutBalancesSubgraph1": 3000,
+    "totalUsersSubgraph2": 8000,
+    "usersWithBalancesSubgraph2": 7500,
+    "usersWithoutBalancesSubgraph2": 500,
+    "totalUniqueUsers": 18000,
+    "usersWithDifferences": 150,
+    "usersOnlyInSubgraph1Count": 50,
+    "usersOnlyInSubgraph2Count": 25,
+    "totalIdsSubgraph1": 25000,
+    "totalIdsSubgraph2": 12000
   },
   "usersOnlyInSubgraph1": ["0x123...", "0x456..."],
   "usersOnlyInSubgraph2": ["0x789..."],
@@ -115,12 +177,24 @@ The script creates a JSON file at `data/results/user-balance-comparison.json` wi
 }
 ```
 
-## Configuration
+## Error Handling & Performance
 
-You can modify the batch size by changing the `batchSize` value in the config object within the script (default: 1000).
+- **Retry Logic**: Automatic retry with exponential backoff for rate-limited requests
+- **Batch Processing**: Processes blockchain calls in batches with delays to avoid rate limits
+- **Error Context**: Detailed error logging with context for debugging
+- **Memory Efficient**: Uses Maps for large datasets and streaming processing
+- **Progress Tracking**: Real-time progress updates for long-running operations
 
-## Error Handling
+## Dependencies
 
-- The script will retry failed requests and provide detailed error messages
-- If either subgraph URL is missing, the script will exit with an error
-- Network timeouts and GraphQL errors are logged with context
+- **ethers.js**: For blockchain interactions and vault owner resolution
+- **graphql-request**: For subgraph data fetching
+- **chalk**: For colored console output
+- **dotenv**: For environment variable management
+
+## Notes
+
+- Vault processing requires a Polygon RPC endpoint and may take significant time for large datasets
+- Cross-chain processing fetches data from Ethereum subgraph automatically
+- The script automatically handles rate limiting and network timeouts
+- Block numbers in configuration should be updated to match desired comparison points
