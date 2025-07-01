@@ -11,7 +11,7 @@ import { ownerContractAddressesOnPolygon } from '../lib';
 dotenv.config();
 
 const subgraphEndpoint = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/version/matic-add-owners-to-wearables-6/api`;
-const sepoliaSgEndpoint = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-6/api`;
+const sepoliaSgEndpoint = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-8/api`;
 
 interface Owner {
   owner: string;
@@ -27,7 +27,7 @@ interface ItemTypeResponse {
 interface OwnerBalance {
   address: string;
   contractBalance: string;
-  subgraphBalance?: string; // For Aavegotchi Diamond addresses, we need both balances
+  equippedWearablesCount?: string; // For Aavegotchi Diamond addresses, count of equipped wearables
 }
 
 interface ChainConfig {
@@ -68,6 +68,7 @@ interface ChainSpecificData {
   totalItems: number;
   totalOwners: number;
   uniqueOwners: number; // Owners that exist only on this chain
+  uniqueOwnerAddresses: string[]; // Actual addresses that exist only on this chain
 }
 
 interface ItemBalanceComparison {
@@ -84,9 +85,13 @@ interface AavegotchiDiamondComparison {
   polygonContractBalance: string;
   baseSepoliaContractBalance: string;
   contractBalancesMatch: boolean;
-  polygonSubgraphBalance: string;
-  baseSepoliaSubgraphBalance: string;
-  subgraphBalancesMatch: boolean;
+  polygonEquippedCount: string;
+  baseSepoliaEquippedCount: string;
+  equippedCountsMatch: boolean;
+  missingAavegotchiIds: {
+    missingFromBaseSepolia: string[]; // Aavegotchi IDs that have this item equipped on Polygon but not on Base Sepolia
+    missingFromPolygon: string[]; // Aavegotchi IDs that have this item equipped on Base Sepolia but not on Polygon
+  };
 }
 
 interface ComparisonResult {
@@ -106,7 +111,7 @@ interface ComparisonResult {
     missingFromBaseSepolia: string[]; // Items that exist on Polygon but not on Base Sepolia
     missingFromPolygon: string[]; // Items that exist on Base Sepolia but not on Polygon
   };
-  itemBalanceComparisons: { [itemId: string]: ItemBalanceComparison };
+  itemBalanceComparisons: { [itemId: string]: ItemBalanceComparison }; // Only items with balance discrepancies
   discrepanciesByItem: { [itemId: string]: ItemDiscrepancyGroup };
   aavegotchiDiamondComparisons: { [itemId: string]: AavegotchiDiamondComparison };
 }
@@ -139,6 +144,7 @@ const RETRY_BASE_DELAY = 1000; // Base delay for exponential backoff (1 second)
 const EXCLUDED_ADDRESSES = new Set([
   // Zero address
   '0x0000000000000000000000000000000000000000',
+  '0x000000000000000000000000000000000000dead',
 
   // Polygon contract addresses
   polygonAddresses.realmDiamond.toLowerCase(),
@@ -217,10 +223,12 @@ function isAavegotchiDiamond(address: string): boolean {
 }
 
 function getEffectiveBalance(owner: OwnerBalance): string {
-  // For Aavegotchi Diamond addresses, use only subgraph balance
+  // For Aavegotchi Diamond addresses, add equipped wearables count to contract balance
   // For other addresses, use only contract balance
-  if (isAavegotchiDiamond(owner.address) && owner.subgraphBalance) {
-    return owner.subgraphBalance;
+  if (isAavegotchiDiamond(owner.address) && owner.equippedWearablesCount) {
+    const contractBalance = parseInt(owner.contractBalance) || 0;
+    const equippedCount = parseInt(owner.equippedWearablesCount) || 0;
+    return (contractBalance + equippedCount).toString();
   }
   return owner.contractBalance;
 }
@@ -371,6 +379,89 @@ async function checkContractBalancesBatch(
   );
 }
 
+async function fetchEquippedWearablesCount(
+  chainConfig: ChainConfig,
+  itemId: string
+): Promise<{ count: number; aavegotchiIds: string[] }> {
+  const client = new GraphQLClient(chainConfig.subgraphEndpoint);
+  let totalCount = 0;
+  const aavegotchiIds: string[] = [];
+  let hasMore = true;
+  let skip = 0;
+  const first = 1000; // Maximum allowed by most subgraphs
+
+  const blockInfo = chainConfig.blockNumber ? ` at block ${chainConfig.blockNumber}` : '';
+  console.log(
+    chalk.blue(
+      `Fetching equipped wearables count for item ID: ${itemId} on ${chainConfig.name}${blockInfo}`
+    )
+  );
+
+  while (hasMore) {
+    try {
+      const blockParam = chainConfig.blockNumber
+        ? `, block: { number: ${chainConfig.blockNumber} }`
+        : '';
+      const query = gql`
+        {
+          aavegotchis(first: ${first}, skip: ${skip}, orderBy: id, orderDirection: asc, where: { equippedWearables_contains: [${itemId}] }${blockParam}) {
+            id
+            equippedWearables
+          }
+        }
+      `;
+
+      const response: { aavegotchis: { id: string; equippedWearables: string[] }[] } =
+        await client.request(query);
+
+      if (response.aavegotchis.length === 0) {
+        hasMore = false;
+      } else {
+        // Count how many times this itemId appears in equipped wearables and collect Aavegotchi IDs
+        for (const aavegotchi of response.aavegotchis) {
+          const count = aavegotchi.equippedWearables.filter(id => id == itemId).length;
+          totalCount += count;
+          // Add the Aavegotchi ID to our list (each ID should only appear once even if they have multiple of the same item)
+          if (count > 0 && !aavegotchiIds.includes(aavegotchi.id)) {
+            aavegotchiIds.push(aavegotchi.id);
+          }
+        }
+
+        skip += first;
+        console.log(
+          `  Processed ${response.aavegotchis.length} aavegotchis (total equipped count so far: ${totalCount}, unique aavegotchis: ${aavegotchiIds.length}, skip: ${skip})`
+        );
+
+        // If we got fewer items than requested, we've reached the end
+        if (response.aavegotchis.length < first) {
+          hasMore = false;
+        } else {
+          // Rate limiting
+          await delay(REQUEST_DELAY);
+        }
+      }
+    } catch (error) {
+      console.error(
+        chalk.red(
+          `Error fetching equipped wearables for item ${itemId} on ${chainConfig.name} at skip ${skip}:`
+        ),
+        error
+      );
+      hasMore = false;
+    }
+  }
+
+  // Sort Aavegotchi IDs numerically
+  aavegotchiIds.sort((a, b) => parseInt(a) - parseInt(b));
+
+  console.log(
+    chalk.green(
+      `✓ Total equipped count for item ${itemId} on ${chainConfig.name}: ${totalCount} (${aavegotchiIds.length} unique aavegotchis)`
+    )
+  );
+  return { count: totalCount, aavegotchiIds };
+}
+
 async function analyzeItem(chainConfig: ChainConfig, itemId: string): Promise<ItemAnalysis> {
   const blockInfo = chainConfig.blockNumber ? ` at block ${chainConfig.blockNumber}` : '';
   console.log(
@@ -417,6 +508,24 @@ async function analyzeItemWithOwners(
     };
   }
 
+  // Fetch equipped wearables count for Aavegotchi Diamond
+  let equippedWearablesCount = 0;
+  const hasDiamondOwner = subgraphOwners.some(owner =>
+    isAavegotchiDiamond(owner.owner.toLowerCase())
+  );
+
+  if (hasDiamondOwner) {
+    try {
+      const equippedData = await fetchEquippedWearablesCount(chainConfig, itemId);
+      equippedWearablesCount = equippedData.count;
+    } catch (error) {
+      console.error(
+        chalk.red(`Error fetching equipped wearables count for item ${itemId}:`),
+        error
+      );
+    }
+  }
+
   const ownerBalances: OwnerBalance[] = [];
   let errors = 0;
 
@@ -436,12 +545,8 @@ async function analyzeItemWithOwners(
         const contractBalance = contractBalances[j];
         const subgraphBalance = owner.balance;
 
-        // For Aavegotchi Diamond addresses, we only need subgraph balance
-        // For other addresses, we only consider contract balance
-        const isDiamond = isAavegotchiDiamond(ownerAddress);
-        const shouldInclude = isDiamond
-          ? parseInt(subgraphBalance) > 0
-          : parseInt(contractBalance) > 0;
+        // Use contract balance for all addresses, including Aavegotchi Diamond
+        const shouldInclude = parseInt(contractBalance) > 0;
 
         // Only store addresses that should be included and are not excluded
         if (shouldInclude && !isAddressExcluded(ownerAddress)) {
@@ -450,15 +555,12 @@ async function analyzeItemWithOwners(
             contractBalance,
           };
 
-          // Add subgraph balance for Aavegotchi Diamond addresses
+          // Add equipped wearables count for Aavegotchi Diamond addresses
           if (isAavegotchiDiamond(ownerAddress)) {
-            ownerBalance.subgraphBalance = subgraphBalance;
-            // Log when we're handling an Aavegotchi Diamond address with subgraph balance
-            if (parseInt(subgraphBalance) > 0) {
-              console.log(
-                `    🔷 Aavegotchi Diamond detected: ${ownerAddress} - Using subgraph balance: ${subgraphBalance} (ignoring contract balance: ${contractBalance})`
-              );
-            }
+            ownerBalance.equippedWearablesCount = equippedWearablesCount.toString();
+            console.log(
+              `    🔷 Aavegotchi Diamond detected: ${ownerAddress} - Contract balance: ${contractBalance}, Equipped count: ${equippedWearablesCount}`
+            );
           }
 
           ownerBalances.push(ownerBalance);
@@ -576,16 +678,18 @@ function mapAddressForComparison(address: string, fromChain: string, toChain: st
   return lowerAddress;
 }
 
-function compareChainResults(
+async function compareChainResults(
   polygonAnalyses: ItemAnalysis[],
-  baseSepoliaAnalyses: ItemAnalysis[]
-): ComparisonResult {
+  baseSepoliaAnalyses: ItemAnalysis[],
+  polygonConfig: ChainConfig,
+  baseSepoliaConfig: ChainConfig
+): Promise<ComparisonResult> {
   const discrepanciesByItem: { [itemId: string]: ItemDiscrepancyGroup } = {};
   const itemBalanceComparisons: { [itemId: string]: ItemBalanceComparison } = {};
   const aavegotchiDiamondComparisons: { [itemId: string]: AavegotchiDiamondComparison } = {};
   const timestamp = new Date().toISOString();
 
-  // Create maps for easier lookup - using EFFECTIVE BALANCES (subgraph only for Aavegotchi Diamond, contract only for others)
+  // Create maps for easier lookup - using EFFECTIVE BALANCES (contract + equipped count for Aavegotchi Diamond, contract only for others)
   const polygonBalancesByItem = new Map<string, Map<string, string>>();
   const baseSepoliaBalancesByItem = new Map<string, Map<string, string>>();
   const polygonAnalysisByItem = new Map<string, ItemAnalysis>();
@@ -706,15 +810,18 @@ function compareChainResults(
         return sum + balance;
       }, 0) || 0;
 
-    // Add balance comparison for ALL items
-    itemBalanceComparisons[itemId] = {
-      itemId,
-      polygonTotalOwners: polygonAnalysis?.totalContractOwners || 0,
-      baseSepoliaTotalOwners: baseSepoliaAnalysis?.totalContractOwners || 0,
-      polygonTotalBalance: polygonTotalBalance.toString(),
-      baseSepoliaTotalBalance: baseSepoliaTotalBalance.toString(),
-      balancesMatch: polygonTotalBalance.toString() === baseSepoliaTotalBalance.toString(),
-    };
+    // Add balance comparison only for items with discrepancies
+    const balancesMatch = polygonTotalBalance.toString() === baseSepoliaTotalBalance.toString();
+    if (!balancesMatch) {
+      itemBalanceComparisons[itemId] = {
+        itemId,
+        polygonTotalOwners: polygonAnalysis?.totalContractOwners || 0,
+        baseSepoliaTotalOwners: baseSepoliaAnalysis?.totalContractOwners || 0,
+        polygonTotalBalance: polygonTotalBalance.toString(),
+        baseSepoliaTotalBalance: baseSepoliaTotalBalance.toString(),
+        balancesMatch: false,
+      };
+    }
 
     // Add Aavegotchi Diamond comparison for items that have diamond owners
     const polygonDiamondOwner = polygonAnalysis?.owners.find(owner =>
@@ -727,18 +834,62 @@ function compareChainResults(
     if (polygonDiamondOwner || baseSepoliaDiamondOwner) {
       const polygonContractBalance = polygonDiamondOwner?.contractBalance || '0';
       const baseSepoliaContractBalance = baseSepoliaDiamondOwner?.contractBalance || '0';
-      const polygonSubgraphBalance = polygonDiamondOwner?.subgraphBalance || '0';
-      const baseSepoliaSubgraphBalance = baseSepoliaDiamondOwner?.subgraphBalance || '0';
+      const polygonEquippedCount = polygonDiamondOwner?.equippedWearablesCount || '0';
+      const baseSepoliaEquippedCount = baseSepoliaDiamondOwner?.equippedWearablesCount || '0';
 
-      aavegotchiDiamondComparisons[itemId] = {
-        itemId,
-        polygonContractBalance,
-        baseSepoliaContractBalance,
-        contractBalancesMatch: polygonContractBalance === baseSepoliaContractBalance,
-        polygonSubgraphBalance,
-        baseSepoliaSubgraphBalance,
-        subgraphBalancesMatch: polygonSubgraphBalance === baseSepoliaSubgraphBalance,
-      };
+      // Fetch equipped Aavegotchi IDs for both chains to find missing ones
+      let polygonAavegotchiIds: string[] = [];
+      let baseSepoliaAavegotchiIds: string[] = [];
+
+      try {
+        if (polygonDiamondOwner) {
+          const polygonEquippedData = await fetchEquippedWearablesCount(polygonConfig, itemId);
+          polygonAavegotchiIds = polygonEquippedData.aavegotchiIds;
+        }
+
+        if (baseSepoliaDiamondOwner) {
+          const baseSepoliaEquippedData = await fetchEquippedWearablesCount(
+            baseSepoliaConfig,
+            itemId
+          );
+          baseSepoliaAavegotchiIds = baseSepoliaEquippedData.aavegotchiIds;
+        }
+      } catch (error) {
+        console.error(chalk.red(`Error fetching Aavegotchi IDs for item ${itemId}:`), error);
+      }
+
+      // Find missing Aavegotchi IDs
+      const missingFromBaseSepolia = polygonAavegotchiIds.filter(
+        id => !baseSepoliaAavegotchiIds.includes(id)
+      );
+      const missingFromPolygon = baseSepoliaAavegotchiIds.filter(
+        id => !polygonAavegotchiIds.includes(id)
+      );
+
+      const contractBalancesMatch = polygonContractBalance === baseSepoliaContractBalance;
+      const equippedCountsMatch = polygonEquippedCount === baseSepoliaEquippedCount;
+      const hasDiscrepancies =
+        !contractBalancesMatch ||
+        !equippedCountsMatch ||
+        missingFromBaseSepolia.length > 0 ||
+        missingFromPolygon.length > 0;
+
+      // Only include items with discrepancies
+      if (hasDiscrepancies) {
+        aavegotchiDiamondComparisons[itemId] = {
+          itemId,
+          polygonContractBalance,
+          baseSepoliaContractBalance,
+          contractBalancesMatch,
+          polygonEquippedCount,
+          baseSepoliaEquippedCount,
+          equippedCountsMatch,
+          missingAavegotchiIds: {
+            missingFromBaseSepolia,
+            missingFromPolygon,
+          },
+        };
+      }
     }
 
     // Only add to discrepanciesByItem if there are discrepancies
@@ -805,11 +956,13 @@ function compareChainResults(
       totalItems: polygonAnalyses.length,
       totalOwners: allPolygonOwners.size,
       uniqueOwners: polygonUniqueOwners.size,
+      uniqueOwnerAddresses: [...polygonUniqueOwners].sort(),
     },
     baseSepolia: {
       totalItems: baseSepoliaAnalyses.length,
       totalOwners: allBaseSepoliaOwners.size,
       uniqueOwners: baseSepoliaUniqueOwners.size,
+      uniqueOwnerAddresses: [...baseSepoliaUniqueOwners].sort(),
     },
   };
 
@@ -913,9 +1066,11 @@ async function analyzeMigrationComparison(): Promise<void> {
 
     // Perform cross-chain comparison
     console.log(chalk.cyan.bold('\n🔄 Performing Cross-Chain Comparison...\n'));
-    const comparisonResult = compareChainResults(
+    const comparisonResult = await compareChainResults(
       migrationAnalyses.polygon,
-      migrationAnalyses.baseSepolia
+      migrationAnalyses.baseSepolia,
+      polygonConfig,
+      baseSepoliaConfig
     );
 
     // Save comparison results to JSON
@@ -947,7 +1102,7 @@ function printComparisonSummary(comparisonResult: ComparisonResult): void {
   console.log('='.repeat(60));
   console.log(
     chalk.blue(
-      '📊 Effective balances comparison (subgraph only for Aavegotchi Diamond, contract only for others)'
+      '📊 Effective balances comparison (contract balance + equipped count for Aavegotchi Diamond, contract only for others)'
     )
   );
 
@@ -962,12 +1117,24 @@ function printComparisonSummary(comparisonResult: ComparisonResult): void {
   console.log(
     `    Unique owners (Polygon only): ${chalk.yellow(comparisonResult.chainSpecificData.polygon.uniqueOwners)}`
   );
+  if (comparisonResult.chainSpecificData.polygon.uniqueOwnerAddresses.length > 0) {
+    console.log(`    Unique addresses (Polygon only):`);
+    comparisonResult.chainSpecificData.polygon.uniqueOwnerAddresses.forEach(address => {
+      console.log(`      ${chalk.yellow(address)}`);
+    });
+  }
   console.log(`  Base Sepolia:`);
   console.log(`    Total items: ${comparisonResult.chainSpecificData.baseSepolia.totalItems}`);
   console.log(`    Total owners: ${comparisonResult.chainSpecificData.baseSepolia.totalOwners}`);
   console.log(
     `    Unique owners (Base Sepolia only): ${chalk.blue(comparisonResult.chainSpecificData.baseSepolia.uniqueOwners)}`
   );
+  if (comparisonResult.chainSpecificData.baseSepolia.uniqueOwnerAddresses.length > 0) {
+    console.log(`    Unique addresses (Base Sepolia only):`);
+    comparisonResult.chainSpecificData.baseSepolia.uniqueOwnerAddresses.forEach(address => {
+      console.log(`      ${chalk.blue(address)}`);
+    });
+  }
 
   console.log('\nDiscrepancy Breakdown:');
   console.log(`  Polygon only: ${chalk.yellow(comparisonResult.discrepancyBreakdown.polygonOnly)}`);
@@ -1014,31 +1181,30 @@ function printComparisonSummary(comparisonResult: ComparisonResult): void {
     }
   }
 
-  // Show total balance comparisons for all items
-  console.log('\n📊 Total Balance Comparisons (All Items):');
+  // Show total balance comparisons for items with discrepancies
+  console.log('\n📊 Total Balance Comparisons (Items with Discrepancies Only):');
   const balanceComparisons = Object.values(comparisonResult.itemBalanceComparisons);
-  const matchingBalances = balanceComparisons.filter(item => item.balancesMatch).length;
-  const totalItems = balanceComparisons.length;
+  const totalItemsCompared = comparisonResult.totalItemsCompared;
+  const itemsWithDiscrepancies = balanceComparisons.length;
 
-  console.log(`  Total items compared: ${totalItems}`);
-  console.log(`  Items with matching total balances: ${chalk.green(matchingBalances)}`);
+  console.log(`  Total items compared: ${totalItemsCompared}`);
   console.log(
-    `  Items with mismatched total balances: ${chalk.red(totalItems - matchingBalances)}`
+    `  Items with matching total balances: ${chalk.green(totalItemsCompared - itemsWithDiscrepancies)}`
   );
+  console.log(`  Items with mismatched total balances: ${chalk.red(itemsWithDiscrepancies)}`);
 
   // Show top 10 items with largest balance differences
-  const itemsWithDifferences = balanceComparisons
-    .filter(item => !item.balancesMatch)
-    .map(item => ({
-      ...item,
-      balanceDifference: Math.abs(
-        parseInt(item.polygonTotalBalance) - parseInt(item.baseSepoliaTotalBalance)
-      ),
-    }))
-    .sort((a, b) => b.balanceDifference - a.balanceDifference)
-    .slice(0, 10);
+  if (itemsWithDiscrepancies > 0) {
+    const itemsWithDifferences = balanceComparisons
+      .map(item => ({
+        ...item,
+        balanceDifference: Math.abs(
+          parseInt(item.polygonTotalBalance) - parseInt(item.baseSepoliaTotalBalance)
+        ),
+      }))
+      .sort((a, b) => b.balanceDifference - a.balanceDifference)
+      .slice(0, 10);
 
-  if (itemsWithDifferences.length > 0) {
     console.log('\n  Top 10 Items with Largest Balance Differences:');
     for (const item of itemsWithDifferences) {
       console.log(`    Item ${item.itemId}:`);
@@ -1050,21 +1216,8 @@ function printComparisonSummary(comparisonResult: ComparisonResult): void {
       );
       console.log(`      Difference: ${chalk.red(item.balanceDifference)}`);
     }
-  }
-
-  // Show a few examples of items with matching balances
-  const itemsWithMatchingBalances = balanceComparisons
-    .filter(item => item.balancesMatch && parseInt(item.polygonTotalBalance) > 0)
-    .sort((a, b) => parseInt(b.polygonTotalBalance) - parseInt(a.polygonTotalBalance))
-    .slice(0, 5);
-
-  if (itemsWithMatchingBalances.length > 0) {
-    console.log('\n  Examples of Items with Matching Balances (top 5 by balance):');
-    for (const item of itemsWithMatchingBalances) {
-      console.log(
-        `    Item ${item.itemId}: ${chalk.green('✓')} Polygon & Base Sepolia both have ${item.polygonTotalBalance} total balance (${item.polygonTotalOwners} owners)`
-      );
-    }
+  } else {
+    console.log('\n  🎉 All items have matching total balances across chains!');
   }
 
   if (comparisonResult.totalDiscrepancies > 0) {
@@ -1152,15 +1305,25 @@ function printAavegotchiDiamondSummary(diamondComparisons: {
   console.log('='.repeat(60));
 
   const contractBalanceMatches = comparisons.filter(c => c.contractBalancesMatch).length;
-  const subgraphBalanceMatches = comparisons.filter(c => c.subgraphBalancesMatch).length;
+  const equippedCountMatches = comparisons.filter(c => c.equippedCountsMatch).length;
+  const totalMissingFromBaseSepolia = comparisons.reduce(
+    (sum, c) => sum + c.missingAavegotchiIds.missingFromBaseSepolia.length,
+    0
+  );
+  const totalMissingFromPolygon = comparisons.reduce(
+    (sum, c) => sum + c.missingAavegotchiIds.missingFromPolygon.length,
+    0
+  );
 
   console.log(`Items with Aavegotchi Diamond ownership: ${comparisons.length}`);
   console.log(
     `Contract balance matches: ${chalk.green(contractBalanceMatches)}/${comparisons.length}`
   );
+  console.log(`Equipped count matches: ${chalk.green(equippedCountMatches)}/${comparisons.length}`);
   console.log(
-    `Subgraph balance matches: ${chalk.green(subgraphBalanceMatches)}/${comparisons.length}`
+    `Total Aavegotchi IDs missing from Base Sepolia: ${chalk.red(totalMissingFromBaseSepolia)}`
   );
+  console.log(`Total Aavegotchi IDs missing from Polygon: ${chalk.blue(totalMissingFromPolygon)}`);
 
   // Show contract balance mismatches
   const contractMismatches = comparisons.filter(c => !c.contractBalancesMatch);
@@ -1176,29 +1339,57 @@ function printAavegotchiDiamondSummary(diamondComparisons: {
     }
   }
 
-  // Show subgraph balance mismatches
-  const subgraphMismatches = comparisons.filter(c => !c.subgraphBalancesMatch);
-  if (subgraphMismatches.length > 0) {
-    console.log(chalk.red(`\nSubgraph Balance Mismatches (${subgraphMismatches.length}):`));
-    subgraphMismatches.slice(0, 10).forEach(c => {
+  // Show equipped count mismatches
+  const equippedMismatches = comparisons.filter(c => !c.equippedCountsMatch);
+  if (equippedMismatches.length > 0) {
+    console.log(chalk.red(`\nEquipped Count Mismatches (${equippedMismatches.length}):`));
+    equippedMismatches.slice(0, 10).forEach(c => {
       console.log(
-        `  Item ${c.itemId}: Polygon ${c.polygonSubgraphBalance} ≠ Base Sepolia ${c.baseSepoliaSubgraphBalance}`
+        `  Item ${c.itemId}: Polygon ${c.polygonEquippedCount} ≠ Base Sepolia ${c.baseSepoliaEquippedCount}`
       );
     });
-    if (subgraphMismatches.length > 10) {
-      console.log(`  ... and ${subgraphMismatches.length - 10} more`);
+    if (equippedMismatches.length > 10) {
+      console.log(`  ... and ${equippedMismatches.length - 10} more`);
+    }
+  }
+
+  // Show missing Aavegotchi IDs summary
+  const itemsWithMissingIds = comparisons.filter(
+    c =>
+      c.missingAavegotchiIds.missingFromBaseSepolia.length > 0 ||
+      c.missingAavegotchiIds.missingFromPolygon.length > 0
+  );
+
+  if (itemsWithMissingIds.length > 0) {
+    console.log(chalk.red(`\nItems with Missing Aavegotchi IDs (${itemsWithMissingIds.length}):`));
+    itemsWithMissingIds.slice(0, 10).forEach(c => {
+      const missingFromBaseSepolia = c.missingAavegotchiIds.missingFromBaseSepolia;
+      const missingFromPolygon = c.missingAavegotchiIds.missingFromPolygon;
+
+      console.log(`  Item ${c.itemId}:`);
+      if (missingFromBaseSepolia.length > 0) {
+        console.log(
+          `    Missing from Base Sepolia (${missingFromBaseSepolia.length}): ${missingFromBaseSepolia.slice(0, 10).join(', ')}${missingFromBaseSepolia.length > 10 ? '...' : ''}`
+        );
+      }
+      if (missingFromPolygon.length > 0) {
+        console.log(
+          `    Missing from Polygon (${missingFromPolygon.length}): ${missingFromPolygon.slice(0, 10).join(', ')}${missingFromPolygon.length > 10 ? '...' : ''}`
+        );
+      }
+    });
+    if (itemsWithMissingIds.length > 10) {
+      console.log(`  ... and ${itemsWithMissingIds.length - 10} more items with missing IDs`);
     }
   }
 
   // Show examples of perfect matches
-  const perfectMatches = comparisons.filter(
-    c => c.contractBalancesMatch && c.subgraphBalancesMatch
-  );
+  const perfectMatches = comparisons.filter(c => c.contractBalancesMatch && c.equippedCountsMatch);
   if (perfectMatches.length > 0) {
     console.log(chalk.green(`\nPerfect Matches (${perfectMatches.length}) - Examples:`));
     perfectMatches.slice(0, 5).forEach(c => {
       console.log(
-        `  Item ${c.itemId}: Contract ${c.polygonContractBalance}, Subgraph ${c.polygonSubgraphBalance}`
+        `  Item ${c.itemId}: Contract ${c.polygonContractBalance}, Equipped ${c.polygonEquippedCount}`
       );
     });
   }

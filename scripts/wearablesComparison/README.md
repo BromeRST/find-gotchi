@@ -12,8 +12,20 @@ The script performs the following operations:
 4. **Verifies Contract Balances**:
    - **Polygon**: Calls the `aavegotchiDiamond` contract to verify balances
    - **Base Sepolia**: Calls the `wearableDiamond` contract to verify balances
-5. **Compares Results**: Identifies discrepancies between subgraph and contract data per chain
-6. **Generates Reports**: Provides detailed analysis and summary statistics for each chain and overall
+5. **Tracks Equipped Wearables**:
+   - Monitors which Aavegotchis have each wearable equipped
+   - Identifies discrepancies in equipped wearables between chains
+   - Reports missing Aavegotchi IDs that should have wearables equipped
+6. **Compares Results**: Identifies discrepancies between:
+   - Subgraph and contract data per chain
+   - Contract balances between chains
+   - Equipped wearables between chains
+   - Missing Aavegotchi IDs between chains
+7. **Generates Reports**: Provides detailed analysis and summary statistics including:
+   - Chain-specific data and discrepancies
+   - Missing items between chains
+   - Balance mismatches
+   - Missing Aavegotchi IDs for equipped wearables
 
 ## Prerequisites
 
@@ -120,38 +132,55 @@ The script provides:
 2. **Batch Progress**: Updates on contract call batches
 3. **Mismatch Alerts**: Highlights balance discrepancies
 4. **Item Summaries**: Statistics for each wearable type
-5. **Final Report**: Overall analysis with accuracy percentages
+5. **Cross-Chain Analysis**:
+   - Items missing from each chain
+   - Balance discrepancies between chains
+   - Aavegotchi IDs with missing equipped wearables
+6. **Final Report**: Overall analysis with:
+   - Accuracy percentages
+   - Total discrepancies breakdown
+   - Chain-specific statistics
+   - Detailed equipped wearables analysis
 
 ### Example Output
 
 ```
-🚀 Starting Wearables Analysis
+🚀 Starting Cross-Chain Wearables Comparison
 
-Finding maximum item ID...
-  Found item ID: 0
-  Found item ID: 1
-  ...
-Maximum item ID found: 150
+Finding items with owners on Polygon...
+Finding items with owners on Base Sepolia...
+✓ Combined total items found: 300
+  - Polygon items: 290
+  - Base Sepolia items: 285
 
-🔍 Analyzing Item ID: 0
-Fetching owners for item ID: 0
-  Fetched 1000 owners (total: 1000, skip: 1000)
-  Fetched 500 owners (total: 1500, skip: 1500)
-✓ Total owners found for item 0: 1500
+🔍 Analyzing Cross-Chain Item ID: 1
+  Fetching owners from both chains...
+  Processing contract balances...
+  Checking equipped wearables...
 
-Checking contract balances for 1500 owners...
-  Processed batch 1/30
-  Mismatch: 0x123...abc - Subgraph: 5, Contract: 3
-  Processed batch 2/30
-  ...
+📊 CROSS-CHAIN COMPARISON SUMMARY
+================================
+Chain-Specific Data:
+  Polygon:
+    Total items: 290
+    Total owners: 15000
+    Unique owners (Polygon only): 150
+  Base Sepolia:
+    Total items: 285
+    Total owners: 14800
+    Unique owners (Base Sepolia only): 120
 
-📊 Summary for Item ID 0:
-  Total owners from subgraph: 1500
-  Successfully checked: 1500
-  Matching balances: 1485
-  Mismatched balances: 15
-  Errors: 0
-  Accuracy: 99.00%
+Discrepancy Breakdown:
+  Polygon only: 50
+  Base Sepolia only: 45
+  Balance mismatches: 25
+
+Items with Missing Aavegotchi IDs:
+  Item 123:
+    Missing from Base Sepolia (5): 1234, 1235, 1236...
+    Missing from Polygon (3): 5678, 5679, 5680
+
+Cross-chain consistency: 98.50%
 ```
 
 ## Configuration
@@ -187,3 +216,41 @@ For faster execution (if your RPC allows):
 - Decrease `requestDelay` and `contractCallDelay`
 - Increase `batchSize` (max 200 addresses per call)
 - Use a premium RPC provider with higher rate limits
+
+## Advanced Features
+
+### Cross-Chain Comparison
+
+The script includes advanced cross-chain comparison features:
+
+1. **Balance Verification**:
+
+   - Compares total balances between chains
+   - Identifies addresses with different balances
+   - Reports chain-specific discrepancies
+
+2. **Equipped Wearables Tracking**:
+
+   - Monitors which Aavegotchis have wearables equipped
+   - Identifies missing equipped wearables between chains
+   - Reports Aavegotchi IDs that need attention
+
+3. **Discrepancy Analysis**:
+
+   - Only reports items with actual discrepancies
+   - Provides detailed breakdown of missing items
+   - Shows missing Aavegotchi IDs for debugging
+
+4. **JSON Output**:
+   - Saves detailed comparison results to JSON
+   - Includes timestamp for historical tracking
+   - Perfect for automated analysis and debugging
+
+### Performance Considerations
+
+For optimal performance when running cross-chain analysis:
+
+- Use reliable RPC endpoints with high rate limits
+- Consider running at off-peak hours
+- Adjust batch sizes based on RPC capabilities
+- Monitor rate limiting on both chains
