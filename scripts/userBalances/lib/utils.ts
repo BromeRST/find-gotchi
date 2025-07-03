@@ -11,17 +11,23 @@ export async function retryWithDelay<T>(
     try {
       return await fn();
     } catch (error: any) {
-      const isRateLimit =
+      const isRetryableError =
         error?.info?.error?.message?.includes('rate limit') ||
         error?.message?.includes('rate limit') ||
-        error?.code === 'CALL_EXCEPTION';
+        error?.code === 'CALL_EXCEPTION' ||
+        error?.message?.includes('timeout') ||
+        error?.message?.includes('ECONNRESET') ||
+        error?.message?.includes('ENOTFOUND') ||
+        error?.message?.includes('network');
 
-      if (attempt === maxRetries || !isRateLimit) {
+      if (attempt === maxRetries || !isRetryableError) {
         throw error;
       }
 
       const delayMs = baseDelay * Math.pow(2, attempt - 1);
-      console.log(`Rate limit hit, retrying in ${delayMs}ms (attempt ${attempt}/${maxRetries})`);
+      console.log(
+        `Network error encountered, retrying in ${delayMs}ms (attempt ${attempt}/${maxRetries}): ${error?.message}`
+      );
       await delay(delayMs);
     }
   }

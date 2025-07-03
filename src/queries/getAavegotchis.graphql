@@ -1,9 +1,44 @@
 fragment AavegotchiInfo on Aavegotchi {
-  id
-  name
+  activeListing
+  baseRarityScore
+  claimedAt
+  claimedTime
+  collateral
   createdAt
+  equippedWearables
+  equippedDelegatedWearables
+  escrow
+  experience
+  gotchiId
+  hauntId
   historicalPrices
+  id
+  kinship
+  lending
+  level
+  locked
+  minimumStake
+  modifiedNumericTraits
+  modifiedRarityScore
+  name
+  numericTraits
+  stakedAmount
   timesTraded
+  status
+  toNextLevel
+  usedSkillPoints
+  withSetsNumericTraits
+  withSetsRarityScore
+  lastInteracted
+  equippedSetID
+  equippedSetName
+  equippedDelegatedWearables
+  owner {
+    id
+  }
+  originalOwner {
+    id
+  }
 }
 
 fragment ItemTypeInfo on ItemType {

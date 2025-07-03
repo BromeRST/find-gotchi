@@ -1,0 +1,6 @@
+# Ignore comparison results
+results/
+*.json
+
+# Ignore logs
+*.log

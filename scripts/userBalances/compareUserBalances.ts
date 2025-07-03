@@ -26,9 +26,9 @@ const ethSubgraphUrl = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH
 
 const config = {
   subgraph1Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/api`,
-  subgraph2Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-8/api`,
+  subgraph2Url: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-9/api`,
   blockNumber1: 73121283,
-  blockNumber2: 27800999,
+  blockNumber2: 27837155,
   batchSize: 1000,
 };
 

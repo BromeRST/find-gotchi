@@ -11,7 +11,7 @@ import { ownerContractAddressesOnPolygon } from '../lib';
 dotenv.config();
 
 const subgraphEndpoint = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/version/matic-add-owners-to-wearables-6/api`;
-const sepoliaSgEndpoint = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-8/api`;
+const sepoliaSgEndpoint = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-9/api`;
 
 interface Owner {
   owner: string;
@@ -141,7 +141,7 @@ const MAX_RETRIES = 3; // Maximum number of retries for failed requests
 const RETRY_BASE_DELAY = 1000; // Base delay for exponential backoff (1 second)
 
 // Create a set of addresses to exclude from comparison
-const EXCLUDED_ADDRESSES = new Set([
+export const EXCLUDED_ADDRESSES = new Set([
   // Zero address
   '0x0000000000000000000000000000000000000000',
   '0x000000000000000000000000000000000000dead',
