@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
 import path from 'path';
+import { updateAavegotchiWearableSets } from '../../lib/wearableSetCalculator';
 
 dotenv.config();
 
@@ -38,8 +39,8 @@ interface AavegotchiMetadata {
   withSetsNumericTraits: string[];
   withSetsRarityScore: string;
   lastInteracted: string;
-  equippedSetID: string;
-  equippedSetName: string;
+  equippedSetID: string | null;
+  equippedSetName: string | null;
   owner: {
     id: string;
   };
@@ -162,7 +163,7 @@ function getChainConfigs(): ChainConfig[] {
     },
     {
       name: 'Base Sepolia',
-      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-9/api`,
+      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-10/api`,
     },
   ];
 }
@@ -278,6 +279,62 @@ async function fetchAllAavegotchis(
   return aavegotchis;
 }
 
+function fixPolygonWearableSets(
+  polygonData: Map<string, AavegotchiMetadata>
+): Map<string, AavegotchiMetadata> {
+  console.log(chalk.blue('Fixing Polygon wearable set calculations...'));
+
+  const updatedData = new Map<string, AavegotchiMetadata>();
+  let processedCount = 0;
+
+  for (const [gotchiId, gotchi] of polygonData.entries()) {
+    try {
+      // Update the gotchi with correct set calculations using local data
+      const updatedGotchi = updateAavegotchiWearableSets(gotchi);
+
+      updatedData.set(gotchiId, updatedGotchi);
+      processedCount++;
+
+      if (processedCount % 1000 === 0) {
+        console.log(chalk.gray(`Processed ${processedCount} Aavegotchis...`));
+      }
+    } catch (error) {
+      console.warn(
+        chalk.yellow(
+          `Failed to update sets for Gotchi ${gotchiId}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      );
+      // Keep original data if update fails
+      updatedData.set(gotchiId, gotchi);
+    }
+  }
+
+  console.log(chalk.green(`Completed fixing wearable sets for ${processedCount} Aavegotchis`));
+  return updatedData;
+}
+
+// Helper function to normalize values for comparison
+function normalizeValue(value: any): any {
+  if (value === null || value === undefined) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(item => {
+      if (typeof item === 'string' && !isNaN(Number(item))) {
+        return Number(item);
+      }
+      return item;
+    });
+  }
+
+  if (typeof value === 'string' && !isNaN(Number(value))) {
+    return Number(value);
+  }
+
+  return value;
+}
+
 function compareAavegotchiMetadata(
   gotchiId: string,
   polygonGotchi: AavegotchiMetadata | undefined,
@@ -335,7 +392,10 @@ function compareAavegotchiMetadata(
     const polygonValue = polygonGotchi[field as keyof AavegotchiMetadata];
     const baseSepoliaValue = baseSepoliaGotchi[field as keyof AavegotchiMetadata];
 
-    if (JSON.stringify(polygonValue) !== JSON.stringify(baseSepoliaValue)) {
+    const normalizedPolygonValue = normalizeValue(polygonValue);
+    const normalizedBaseSepoliaValue = normalizeValue(baseSepoliaValue);
+
+    if (JSON.stringify(normalizedPolygonValue) !== JSON.stringify(normalizedBaseSepoliaValue)) {
       discrepancies.push({
         gotchiId,
         field,
@@ -359,7 +419,10 @@ function compareAavegotchiMetadata(
     const polygonValue = polygonGotchi[field as keyof AavegotchiMetadata];
     const baseSepoliaValue = baseSepoliaGotchi[field as keyof AavegotchiMetadata];
 
-    if (JSON.stringify(polygonValue) !== JSON.stringify(baseSepoliaValue)) {
+    const normalizedPolygonValue = normalizeValue(polygonValue);
+    const normalizedBaseSepoliaValue = normalizeValue(baseSepoliaValue);
+
+    if (JSON.stringify(normalizedPolygonValue) !== JSON.stringify(normalizedBaseSepoliaValue)) {
       discrepancies.push({
         gotchiId,
         field,
@@ -530,10 +593,13 @@ async function main(): Promise<void> {
     const chainConfigs = getChainConfigs();
 
     // Fetch data from both chains in parallel
-    const [polygonData, baseSepoliaData] = await Promise.all([
+    const [polygonDataRaw, baseSepoliaData] = await Promise.all([
       fetchAllAavegotchis(chainConfigs[0]), // Polygon
       fetchAllAavegotchis(chainConfigs[1]), // Base Sepolia
     ]);
+
+    // Fix Polygon wearable set calculations
+    const polygonData = fixPolygonWearableSets(polygonDataRaw);
 
     // Compare the metadata
     const comparisonResult = await compareMetadata(polygonData, baseSepoliaData);
