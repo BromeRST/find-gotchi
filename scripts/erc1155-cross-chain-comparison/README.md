@@ -1,6 +1,6 @@
 # ERC1155 Cross-Chain Comparison
 
-This script compares ERC1155 token owners and balances across different blockchain networks using the [Alchemy NFT API](https://www.alchemy.com/docs/data/nft-api/api-reference/nft-ownership-endpoints/get-owners-for-contract-v-3). It identifies discrepancies in ownership data between chains, analyzes transfer activity to understand causes, and provides comprehensive analysis reports.
+This script compares ERC1155 token owners and balances across different blockchain networks using the [Alchemy SDK v2](https://github.com/alchemyplatform/alchemy-sdk-js). It fetches ownership data directly at specific block heights and identifies discrepancies between chains, providing comprehensive analysis reports.
 
 ## Features
 
@@ -8,25 +8,25 @@ This script compares ERC1155 token owners and balances across different blockcha
 
 - **ERC1155 Focus**: Specifically designed for ERC1155 tokens with individual token ID balance tracking
 - **Multi-chain Support**: Compare ownership across Polygon, Base Sepolia, and other Alchemy-supported networks
-- **Historical Snapshots**: Query ownership data at specific block heights for time-based analysis
+- **Direct Block Queries**: Query ownership data directly at specific block heights using Alchemy SDK v2
 - **Token-level Analysis**: Compare both total balances and individual token ID balances for each owner
 
-### Advanced Analysis
+### Analysis Features
 
-- **Transfer Activity Analysis**: Analyzes post-snapshot transfers to understand discrepancy causes
-- **Balance Adjustment**: Applies transfer data to adjust Polygon balances and test if timing explains discrepancies
-- **Effectiveness Measurement**: Calculates resolution rates to determine if transfers explain differences
+- **Historical Snapshots**: Query ownership data at specific block heights for time-based analysis
 - **Contract Address Filtering**: Automatically excludes known contract addresses from ownership comparisons
+- **Discrepancy Detection**: Identifies owners with inconsistent balances and chain-exclusive ownership
+- **Simplified Comparison**: Direct block-based comparison without complex transfer analysis
 
 ### Reporting & Output
 
 - **Comprehensive Console Output**: Detailed real-time analysis with color-coded results
 - **JSON Export**: Complete results saved to timestamped JSON files for further analysis
-- **Discrepancy Detection**: Identifies owners with inconsistent balances and chain-exclusive ownership
-- **Transfer Summaries**: Detailed transfer activity reports with block numbers and directions
+- **Summary Statistics**: Clear overview of ownership differences between chains
 
 ### Technical Features
 
+- **Alchemy SDK v2**: Uses alchemy-sdk v2 for direct block parameter support
 - **Pagination Handling**: Automatically handles large datasets with proper pagination
 - **Rate Limiting**: Built-in delays to respect API rate limits
 - **Error Handling**: Graceful handling of API errors and network issues
@@ -85,26 +85,24 @@ npx ts-node scripts/erc1155-cross-chain-comparison/runAllCollections.ts
 
 ## Configuration
 
-The script uses hardcoded configuration in the `getCollectionConfig()` function. Current default setup:
+The script uses configuration in the `getCollectionConfig()` function. Current default setup:
 
 ```typescript
 chains: [
   {
     name: 'Polygon',
-    alchemyEndpoint: 'https://polygon-mainnet.g.alchemy.com/nft/v3',
     contractAddress: '0x19f870bd94a34b3adaa9caa439d333da18d6812a',
     blockNumber: '72386800', // Specific snapshot block
     maxRequests: 100,
-    requestDelay: 200,
+    requestDelay: 100,
     enabled: true,
   },
   {
     name: 'BaseSepolia',
-    alchemyEndpoint: 'https://base-sepolia.g.alchemy.com/nft/v3',
     contractAddress: '0x5Aefdc5283B24EEa7b50FFBBf7FB8A2bD4537609',
-    blockNumber: 'latest',
+    blockNumber: 'latest', // Latest block
     maxRequests: 100,
-    requestDelay: 200,
+    requestDelay: 100,
     enabled: true,
   },
 ],
@@ -122,11 +120,12 @@ The `blockNumber` field supports:
 
 ## Analysis Process
 
-The script performs a comprehensive 6-step analysis:
+The script performs a comprehensive 3-step analysis:
 
 ### 1. Data Fetching
 
-- Fetches all owners for each configured chain
+- Fetches all owners for each configured chain using Alchemy SDK v2
+- Queries data directly at specified block heights using `blockTag` parameter
 - Handles pagination automatically for large datasets
 - Filters out known contract addresses
 - Respects rate limits with configurable delays
@@ -138,30 +137,11 @@ The script performs a comprehensive 6-step analysis:
 - Detects balance discrepancies at token level
 - Calculates summary statistics
 
-### 3. Transfer Analysis
-
-- Analyzes transfer activity after snapshot block
-- Fetches transfers for addresses with discrepancies
-- Filters for relevant token IDs only
-- Provides detailed transfer logs with block numbers
-
-### 4. Balance Adjustment
-
-- Applies post-snapshot transfers to Polygon balances
-- Adjusts balances based on RECEIVED/SENT transfers
-- Tracks which addresses had activity
-
-### 5. Effectiveness Analysis
-
-- Compares original vs adjusted discrepancies
-- Calculates resolution rate
-- Determines if timing explains differences
-
-### 6. Comprehensive Reporting
+### 3. Comprehensive Reporting
 
 - Console output with detailed analysis
 - JSON export for further processing
-- Summary statistics and effectiveness metrics
+- Summary statistics and discrepancy details
 
 ## Output Examples
 
@@ -186,48 +166,29 @@ Total token discrepancies: 79
 Only on Polygon: 12 owners
 Only on BaseSepolia: 2 owners
 
+⚠️ DISCREPANCIES FOUND:
+
+Chain-exclusive owners: 14
+Balance discrepancy owners: 4
+
 📊 BALANCE DISCREPANCIES:
 
 1. 0x6d8E193888C0a78f4F0be41d83C3bb486adca4f4
   Polygon: 22 total tokens (4 different token IDs)
   BaseSepolia: 16 total tokens (4 different token IDs)
   Tokens with differences (4 total):
-    Token 65: Polygon: 2, BaseSepolia: 3
-    Token 83: Polygon: 10, BaseSepolia: 4
-    Token 101: Polygon: 5, BaseSepolia: 3
-    Token 119: Polygon: 5, BaseSepolia: 6
-```
-
-### Transfer Analysis Output
-
-```
-🔍 ANALYZING TRANSFER ACTIVITY FOR DISCREPANCIES
-📦 Collection: Installations
-🏗️ Contract: 0x19f870bd94a34b3adaa9caa439d333da18d6812a
-📊 Block reference: 72386800
-🔢 Addresses to analyze: 18
-
-[1/18] Checking transfers for 0x6d8E193888C0a78f4F0be41d83C3bb486adca4f4...
-  ✓ Found 30 relevant transfers out of 303 total for this address
-    RECEIVED in block 72643647: Token 101 from 0x0000000000000000000000000000000000000000
-    SENT in block 72643683: Token 101 to 0x1d0360bac7299c86ec8e99d0c1c9a95fefaf2a11
-```
-
-### Balance Adjustment Output
-
-```
-🔧 ADJUSTING POLYGON BALANCES WITH TRANSFER DATA
-📝 Adjusting balances for 0x6d8E193888C0a78f4F0be41d83C3bb486adca4f4:
-  Token 101: 5 → 7 (+2)
-📝 Adjusting balances for 0xfFea5a2cfAF1AaFbB87A1FE4eED5413DA45C30a0:
-  Token 101: 1 → 0 (-5)
-  Token 65: 9 → 17 (+8)
-
-📊 ADJUSTMENT EFFECTIVENESS ANALYSIS
-Original discrepancies: 18
-Adjusted discrepancies: 18
-Discrepancies resolved: 0
-Resolution rate: 0.0%
+    Token 65:
+      Polygon: 2
+      BaseSepolia: 3
+    Token 83:
+      Polygon: 10
+      BaseSepolia: 4
+    Token 101:
+      Polygon: 5
+      BaseSepolia: 3
+    Token 119:
+      Polygon: 5
+      BaseSepolia: 6
 ```
 
 ### JSON Export
@@ -245,7 +206,12 @@ Results are saved to `data/results/erc1155/[collection]-comparison-[timestamp].j
     },
     "uniqueOwners": 5864,
     "ownersWithDiscrepancies": 18,
-    "tokenDiscrepancies": 79
+    "tokenDiscrepancies": 79,
+    "chainsCompared": ["Polygon", "BaseSepolia"],
+    "contractAddresses": {
+      "Polygon": "0x19f870bd94a34b3adaa9caa439d333da18d6812a",
+      "BaseSepolia": "0x5Aefdc5283B24EEa7b50FFBBf7FB8A2bD4537609"
+    }
   },
   "discrepancies": [
     {
@@ -262,7 +228,13 @@ Results are saved to `data/results/erc1155/[collection]-comparison-[timestamp].j
         ]
       }
     }
-  ]
+  ],
+  "detailedReport": {
+    "ownersOnlyOnChain": {
+      "Polygon": ["0x1234..."],
+      "BaseSepolia": ["0x5678..."]
+    }
+  }
 }
 ```
 
@@ -274,25 +246,20 @@ The script is organized into focused modules for maintainability:
 
 #### **lib/fetchers.ts** - Data Fetching
 
-- `fetchOwnersForContract()` - Fetches owners for a specific contract with pagination
+- `fetchOwnersForContract()` - Fetches owners for a specific contract with pagination using Alchemy SDK v2
 - `fetchAllChainData()` - Orchestrates data fetching across multiple chains
-- `fetchTransfersForContract()` - Fetches transfer data for analysis
 
 #### **lib/comparison.ts** - Analysis Logic
 
 - `compareOwnershipData()` - Core comparison algorithm between chains
-- `compareAdjustedBalances()` - Compares adjusted balances after transfer analysis
 
 #### **lib/printers.ts** - Output Formatting
 
 - `printResults()` - Formats and displays main comparison results
-- `printTransferAnalysis()` - Formats transfer analysis output
 
 #### **lib/utils.ts** - Configuration & Utilities
 
 - `getCollectionConfig()` - Manages configuration for single/multi-collection runs
-- `analyzeTransfersForDiscrepancies()` - Analyzes post-snapshot transfer activity
-- `adjustBalancesWithTransfers()` - Applies transfers to adjust balances
 - `saveResults()` - JSON export functionality
 
 ### Types
@@ -312,12 +279,11 @@ interface Owner {
 
 interface ChainConfig {
   name: string;
-  alchemyEndpoint: string;
   contractAddress: string;
   blockNumber?: string;
-  maxRequests: number;
-  requestDelay: number;
-  enabled: boolean;
+  maxRequests?: number;
+  requestDelay?: number;
+  enabled?: boolean;
 }
 
 interface OwnerComparison {
@@ -330,13 +296,6 @@ interface OwnerComparison {
   };
 }
 
-interface TransferAnalysis {
-  address: string;
-  transfersFound: number;
-  relevantTransfers: NftTransfer[];
-  blockRange: { from: string; to: string };
-}
-
 interface ComparisonResult {
   collectionName: string;
   timestamp: string;
@@ -345,9 +304,13 @@ interface ComparisonResult {
     uniqueOwners: number;
     ownersWithDiscrepancies: number;
     tokenDiscrepancies: number;
+    chainsCompared: string[];
+    contractAddresses: { [chainName: string]: string };
   };
   discrepancies: OwnerComparison[];
-  adjustedComparison?: ComparisonResult;
+  detailedReport: {
+    ownersOnlyOnChain: { [chainName: string]: string[] };
+  };
 }
 ```
 
@@ -356,11 +319,24 @@ interface ComparisonResult {
 The script automatically filters out known contract addresses to avoid false positives:
 
 ```typescript
-const CONTRACT_ADDRESSES = new Set([
-  '0x1d0360bac7299c86ec8e99d0c1c9a95fefaf2a11', // Realm Diamond
-  '0x19f870bd94a34b3adaa9caa439d333da18d6812a', // Installations Diamond
-  '0x9216c31d8146bcb3ea5a9162dc1702e8aedca355', // Tiles Diamond
-  // ... more contract addresses
+const KNOWN_CONTRACT_ADDRESSES = new Set([
+  // Polygon contract addresses
+  polygonAddresses.realmDiamond.toLowerCase(),
+  polygonAddresses.installationsDiamond.toLowerCase(),
+  polygonAddresses.tilesDiamond.toLowerCase(),
+  polygonAddresses.aavegotchiDiamond.toLowerCase(),
+  polygonAddresses.wearableDiamond.toLowerCase(),
+
+  // Base Sepolia contract addresses
+  baseSepoliaAddresses.realmDiamond.toLowerCase(),
+  baseSepoliaAddresses.installationsDiamond.toLowerCase(),
+  baseSepoliaAddresses.tilesDiamond.toLowerCase(),
+  baseSepoliaAddresses.aavegotchiDiamond.toLowerCase(),
+  baseSepoliaAddresses.wearableDiamond.toLowerCase(),
+
+  // Common addresses
+  '0x000000000000000000000000000000000000dead', // burn address
+  '0x0000000000000000000000000000000000000000', // zero address
 ]);
 ```
 
@@ -372,25 +348,24 @@ const CONTRACT_ADDRESSES = new Set([
 2. **Large Datasets**: Script handles pagination automatically
 3. **Network Errors**: Built-in retry logic with graceful degradation
 4. **Missing API Keys**: Check `.env` file configuration
-5. **Hex Display Issues**: Fixed - totals now display in decimal format
 
 ### Error Messages
 
 - `"ALCHEMY_API_KEY is required"`: Add API key to `.env` file
 - `"HTTP 401: Unauthorized"`: Verify API key is correct
 - `"HTTP 429: Too Many Requests"`: Increase request delays
-- `"No enabled chains found"`: Check chain configuration
+- `"Unsupported chain"`: Check chain name in configuration
 
 ### Performance Considerations
 
 - **Large contracts**: May take several minutes for 5000+ owners
-- **Transfer analysis**: Limited to 50 addresses to avoid rate limits
 - **Memory usage**: Processes data in memory - monitor for very large datasets
-- **Rate limiting**: 200ms delays between requests by default
+- **Rate limiting**: 100ms delays between requests by default
+- **Block queries**: Direct block queries are faster than transfer analysis
 
 ## Supported Networks
 
-The script supports all Alchemy-compatible networks:
+The script supports all Alchemy SDK v2 compatible networks:
 
 - **Polygon Mainnet** ✅ (Primary)
 - **Base Sepolia** ✅ (Primary)
@@ -406,48 +381,51 @@ See [Alchemy's documentation](https://docs.alchemy.com/reference/nft-api-quickst
 
 ```
 scripts/erc1155-cross-chain-comparison/
-├── compareOwnersAcrossChains.ts    # Main orchestration script (122 lines)
+├── compareOwnersAcrossChains.ts    # Main orchestration script
 ├── runAllCollections.ts           # Multi-collection orchestrator
-├── types.ts                       # TypeScript type definitions
-├── chainAddresses.ts             # Contract address configurations
 ├── config.example.env            # Environment variable template
 ├── lib/                           # Modular library functions
-│   ├── utils.ts                   # Configuration & utilities (377 lines)
-│   ├── printers.ts               # Output formatting (220 lines)
-│   ├── comparison.ts             # Comparison logic (217 lines)
-│   └── fetchers.ts               # Data fetching (240 lines)
+│   ├── types.ts                   # TypeScript type definitions
+│   ├── chainAddresses.ts         # Contract address configurations
+│   ├── utils.ts                   # Configuration & utilities
+│   ├── printers.ts               # Output formatting
+│   ├── comparison.ts             # Comparison logic
+│   └── fetchers.ts               # Data fetching with Alchemy SDK v2
 └── README.md                     # This documentation
 ```
 
 ## Recent Improvements
 
-### v2.0 Features
+### v3.0 Major Update - Alchemy SDK v2 Migration
 
-- ✅ **Transfer Analysis**: Post-snapshot transfer activity analysis
-- ✅ **Balance Adjustment**: Automatic balance adjustment based on transfers
-- ✅ **Effectiveness Measurement**: Resolution rate calculation
-- ✅ **Contract Filtering**: Automatic exclusion of contract addresses
-- ✅ **Type Safety**: Complete TypeScript type system
-- ✅ **Hex Fix**: Proper decimal display for token totals
-- ✅ **Modular Architecture**: Refactored into clean, maintainable modules
+- ✅ **SDK Migration**: Migrated from alchemy-sdk v3 to v2 for `blockTag` parameter support
+- ✅ **Direct Block Queries**: Fetch ownership data directly at specific blocks using `blockTag`
+- ✅ **Simplified Architecture**: Removed complex transfer analysis in favor of direct queries
+- ✅ **Performance Improvement**: Faster execution without transfer fetching overhead
+- ✅ **Reduced Complexity**: Cleaner codebase with focused functionality
+- ✅ **Better Reliability**: Fewer API calls and dependencies
 
-### v2.1 Architecture Improvements
+### Key Changes from v2.x
 
-- 🏗️ **Modular Design**: Split 1150+ line script into focused modules
-- 📦 **Separation of Concerns**: Each module handles specific functionality
-- 🔧 **lib/utils.ts**: Configuration management and utility functions
-- 🖨️ **lib/printers.ts**: All output formatting and display logic
-- ⚖️ **lib/comparison.ts**: Core comparison algorithms
-- 📡 **lib/fetchers.ts**: Data fetching and API interactions
-- 🧪 **Testability**: Individual modules can be tested in isolation
-- 🔄 **Reusability**: Functions can be imported by other scripts
+- 🔄 **Removed Transfer Analysis**: No longer fetches and analyzes post-snapshot transfers
+- 🔄 **Removed Balance Adjustment**: Direct block queries eliminate need for adjustments
+- 🔄 **Simplified Output**: Focus on ownership comparison without transfer details
+- 🎯 **Block-First Approach**: Query data at desired state directly rather than adjusting afterward
 
 ### Performance Optimizations
 
-- Pagination handling for large datasets
-- Rate limiting with configurable delays
-- Memory-efficient processing
-- Graceful error handling and recovery
+- Faster execution with direct block queries
+- Reduced API calls (no transfer fetching)
+- Simplified processing pipeline
+- Memory-efficient single-pass comparison
+
+### Architecture Benefits
+
+- 🏗️ **Modular Design**: Focused modules for specific functionality
+- 📦 **Separation of Concerns**: Clear responsibility boundaries
+- 🧪 **Testability**: Individual modules can be tested in isolation
+- 🔄 **Reusability**: Functions can be imported by other scripts
+- 🚀 **Maintainability**: Easier to understand and modify
 
 ## Contributing
 
@@ -455,8 +433,8 @@ To extend functionality:
 
 1. **Add new chains**: Update `ChainConfig` in `getCollectionConfig()`
 2. **Add new collections**: Update `COLLECTIONS` array in `runAllCollections.ts`
-3. **Modify analysis**: Extend transfer analysis or add new metrics
-4. **Update types**: Add new interfaces in `types.ts`
+3. **Modify analysis**: Extend comparison logic or add new metrics
+4. **Update types**: Add new interfaces in `lib/types.ts`
 
 ## License
 

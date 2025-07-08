@@ -1,5 +1,6 @@
 import chalk from 'chalk';
-import { AlchemyOwnersResponse, ChainConfig, CollectionConfig, NftTransfer, Owner } from './types';
+import { Alchemy, Network } from 'alchemy-sdk';
+import { ChainConfig, CollectionConfig, Owner } from './types';
 import { baseSepoliaAddresses } from './chainAddresses';
 import { polygonAddresses } from './chainAddresses';
 import { ownerContractAddressesOnPolygon } from '../../lib';
@@ -42,6 +43,27 @@ function isContractAddress(address: string): boolean {
   return KNOWN_CONTRACT_ADDRESSES.has(address.toLowerCase());
 }
 
+// Network mapping for Alchemy SDK v2
+function getAlchemyNetwork(chainName: string): Network {
+  switch (chainName.toLowerCase()) {
+    case 'polygon':
+      return Network.MATIC_MAINNET;
+    case 'basesepolia':
+      return Network.BASE_SEPOLIA;
+    default:
+      throw new Error(`Unsupported chain: ${chainName}`);
+  }
+}
+
+// Create Alchemy instance for a specific chain
+function createAlchemyInstance(config: ChainConfig, apiKey: string): Alchemy {
+  const network = getAlchemyNetwork(config.name);
+  return new Alchemy({
+    apiKey,
+    network,
+  });
+}
+
 export async function fetchOwnersForContract(
   config: ChainConfig,
   apiKey: string,
@@ -59,6 +81,9 @@ export async function fetchOwnersForContract(
     )
   );
 
+  // Create Alchemy SDK v2 instance
+  const alchemy = createAlchemyInstance(config, apiKey);
+
   do {
     if (requestCount >= maxRequests) {
       console.warn(
@@ -67,43 +92,49 @@ export async function fetchOwnersForContract(
       break;
     }
 
-    const url = new URL(`${config.alchemyEndpoint}/${apiKey}/getOwnersForContract`);
-    url.searchParams.append('contractAddress', config.contractAddress);
-    url.searchParams.append('withTokenBalances', 'true');
-
-    if (pageKey) {
-      url.searchParams.append('pageKey', pageKey);
-    }
-
-    // Add block parameter if specified
-    if (config.blockNumber) {
-      console.log(chalk.blue(`Adding block number: ${config.blockNumber}`));
-      url.searchParams.append('block', config.blockNumber);
-    }
-
     try {
       console.log(
         `  Request ${requestCount + 1} for ${config.name}${pageKey ? ` (page: ${pageKey.slice(0, 8)}...)` : ''}`
       );
 
-      const response = await fetch(url.toString());
+      // Use Alchemy SDK v2 to get owners for contract with token balances
+      const options: any = {
+        withTokenBalances: true,
+      };
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (pageKey) {
+        options.pageKey = pageKey;
       }
 
-      const data: AlchemyOwnersResponse = await response.json();
+      // Add blockTag parameter if specified (v2 uses blockTag instead of block)
+      if (config.blockNumber) {
+        console.log(chalk.blue(`Adding block number: ${config.blockNumber}`));
+        options.block = Number(config.blockNumber);
+      }
 
-      if (data.owners && data.owners.length > 0) {
+      const response = await alchemy.nft.getOwnersForContract(config.contractAddress, options);
+
+      if (response.owners && response.owners.length > 0) {
+        // Convert Alchemy SDK v2 response to our format
+        const convertedOwners: Owner[] = response.owners.map((owner: any) => ({
+          ownerAddress: owner.ownerAddress,
+          tokenBalances: owner.tokenBalances.map((balance: any) => ({
+            tokenId: balance.tokenId,
+            balance: parseInt(balance.balance, 10),
+          })),
+        }));
+
         // Filter out known contract addresses and zero address
-        const filteredOwners = data.owners.filter(owner => !isContractAddress(owner.ownerAddress));
+        const filteredOwners = convertedOwners.filter(
+          owner => !isContractAddress(owner.ownerAddress)
+        );
         allOwners.push(...filteredOwners);
         console.log(
-          `  Fetched ${data.owners.length} owners (${filteredOwners.length} after filtering contract addresses). Total so far: ${allOwners.length}`
+          `  Fetched ${response.owners.length} owners (${filteredOwners.length} after filtering contract addresses). Total so far: ${allOwners.length}`
         );
       }
 
-      pageKey = data.pageKey;
+      pageKey = response.pageKey;
       requestCount++;
 
       // Add delay to respect rate limits
@@ -154,113 +185,4 @@ export async function fetchAllChainData(
   }
 
   return results;
-}
-
-export async function fetchTransfersForContract({
-  contractAddress,
-  fromBlock,
-  toBlock,
-  apiKey,
-}: {
-  contractAddress: string;
-  fromBlock: string;
-  toBlock: string;
-  apiKey: string;
-}): Promise<NftTransfer[]> {
-  const url = `https://polygon-mainnet.g.alchemy.com/v2/${apiKey}`;
-
-  // Convert block numbers to hex format if they're not already
-  const fromBlockHex = fromBlock.startsWith('0x')
-    ? fromBlock
-    : `0x${parseInt(fromBlock).toString(16)}`;
-  const toBlockHex =
-    toBlock === 'latest'
-      ? 'latest'
-      : toBlock.startsWith('0x')
-        ? toBlock
-        : `0x${parseInt(toBlock).toString(16)}`;
-
-  const payload = {
-    jsonrpc: '2.0',
-    id: 1,
-    method: 'alchemy_getAssetTransfers',
-    params: [
-      {
-        fromBlock: fromBlockHex,
-        toBlock: toBlockHex,
-        contractAddresses: [contractAddress],
-        category: ['erc721', 'erc1155'],
-        excludeZeroValue: false,
-        maxCount: '0x3e8', // 1000 in hex
-        order: 'asc',
-      },
-    ],
-  };
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-
-  if (data.error) {
-    throw new Error(`API Error: ${data.error.message}`);
-  }
-
-  if (data.result && data.result.transfers) {
-    console.log(
-      `    📊 Found ${data.result.transfers.length} transfers for contract ${contractAddress}`
-    );
-
-    // Convert alchemy_getAssetTransfers format to our NftTransfer format
-    return data.result.transfers.map((transfer: any) => {
-      // Convert hex tokenId to decimal string
-      let tokenId =
-        transfer.erc721TokenId ||
-        (transfer.erc1155Metadata && transfer.erc1155Metadata.length > 0
-          ? transfer.erc1155Metadata[0].tokenId
-          : '0');
-
-      // Convert hex to decimal if it's in hex format
-      if (tokenId.startsWith('0x')) {
-        tokenId = parseInt(tokenId, 16).toString();
-      }
-
-      // Convert hex blockNumber to decimal string
-      let blockNumber = transfer.blockNum;
-      if (blockNumber.startsWith('0x')) {
-        blockNumber = parseInt(blockNumber, 16).toString();
-      }
-
-      return {
-        contract: {
-          address: contractAddress,
-          tokenType: transfer.category === 'erc721' ? 'ERC721' : 'ERC1155',
-        },
-        tokenId,
-        tokenType: transfer.category === 'erc721' ? 'ERC721' : 'ERC1155',
-        from: transfer.from,
-        to: transfer.to,
-        transactionHash: transfer.hash,
-        blockNumber,
-        // Add transfer amount for ERC1155 tokens
-        transferAmount:
-          transfer.category === 'erc1155' &&
-          transfer.erc1155Metadata &&
-          transfer.erc1155Metadata.length > 0
-            ? parseInt(transfer.erc1155Metadata[0].value || '1', 10)
-            : 1, // Default to 1 for ERC721
-      };
-    });
-  }
-
-  return [];
 }

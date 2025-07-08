@@ -1,14 +1,9 @@
 import chalk from 'chalk';
-import { CollectionConfig, ComparisonResult, AdjustmentSummary } from './lib/types';
+import { CollectionConfig, ComparisonResult } from './lib/types';
 import { fetchAllChainData } from './lib/fetchers';
-import { compareAdjustedBalances, compareOwnershipData } from './lib/comparison';
-import { printResults, printTransferAnalysis } from './lib/printers';
-import {
-  adjustBalancesWithTransfers,
-  analyzeTransfersForDiscrepancies,
-  getCollectionConfig,
-  saveResults,
-} from './lib/utils';
+import { compareOwnershipData } from './lib/comparison';
+import { printResults } from './lib/printers';
+import { getCollectionConfig, saveResults } from './lib/utils';
 
 const COLLECTION_CONFIG = getCollectionConfig();
 
@@ -57,119 +52,15 @@ async function main(): Promise<void> {
     // Print results
     printResults(result);
 
-    // Analyze transfers for discrepancies (only if we have discrepancies and a Polygon block number)
-    if (result.discrepancies.length > 0) {
-      const polygonChain = COLLECTION_CONFIG.chains.find(chain => chain.name === 'Polygon');
-      if (polygonChain && polygonChain.blockNumber) {
-        console.log(chalk.cyan('\n🔍 Starting transfer analysis for discrepancies...'));
-        const transferAnalysis = await analyzeTransfersForDiscrepancies(
-          result.discrepancies,
-          polygonChain.contractAddress,
-          polygonChain.blockNumber,
-          COLLECTION_CONFIG.apiKey,
-          COLLECTION_CONFIG.name
-        );
-        printTransferAnalysis(transferAnalysis, COLLECTION_CONFIG.name);
-
-        // Add transfer analysis to results before saving
-        result.transferAnalysis = transferAnalysis;
-
-        // Apply transfer adjustments and compare adjusted balances
-        if (transferAnalysis.some(analysis => analysis.relevantTransfers.length > 0)) {
-          const { adjustedData: adjustedPolygonData, addressesToExclude } =
-            adjustBalancesWithTransfers(chainData['Polygon'], transferAnalysis);
-
-          const adjustedResult = compareAdjustedBalances(
-            result,
-            adjustedPolygonData,
-            chainData['BaseSepolia'],
-            COLLECTION_CONFIG.name,
-            addressesToExclude
-          );
-
-          // Print adjusted results if there are still discrepancies
-          if (adjustedResult.discrepancies.length > 0) {
-            console.log(chalk.red.bold('\n📋 REMAINING DISCREPANCIES AFTER ADJUSTMENT:'));
-            printResults(adjustedResult);
-          }
-
-          // Calculate and store adjustment summary
-          const originalOwners = result.summary.ownersWithDiscrepancies;
-          const originalTokens = result.summary.tokenDiscrepancies;
-          const adjustedOwners = adjustedResult.summary.ownersWithDiscrepancies;
-          const adjustedTokens = adjustedResult.summary.tokenDiscrepancies;
-
-          const resolvedOwners = originalOwners - adjustedOwners;
-          const resolvedTokens = originalTokens - adjustedTokens;
-
-          const ownerResolutionRate =
-            originalOwners > 0 ? (resolvedOwners / originalOwners) * 100 : 0;
-          const tokenResolutionRate =
-            originalTokens > 0 ? (resolvedTokens / originalTokens) * 100 : 0;
-
-          result.adjustmentSummary = {
-            originalDiscrepancies: {
-              ownersWithDiscrepancies: originalOwners,
-              tokenDiscrepancies: originalTokens,
-            },
-            adjustedDiscrepancies: {
-              ownersWithDiscrepancies: adjustedOwners,
-              tokenDiscrepancies: adjustedTokens,
-            },
-            resolved: {
-              ownersWithDiscrepancies: resolvedOwners,
-              tokenDiscrepancies: resolvedTokens,
-            },
-            resolutionRate: {
-              owners: Math.round(ownerResolutionRate * 100) / 100,
-              tokens: Math.round(tokenResolutionRate * 100) / 100,
-            },
-          };
-
-          // Print adjustment summary
-          console.log(chalk.cyan.bold('\n📊 TRANSFER ADJUSTMENT SUMMARY'));
-          console.log(chalk.cyan('='.repeat(80)));
-          console.log(chalk.yellow.bold('\n📈 BEFORE vs AFTER TRANSFER ADJUSTMENT:'));
-          console.log(`${chalk.blue('Original owners with discrepancies:')} ${originalOwners}`);
-          console.log(`${chalk.blue('Adjusted owners with discrepancies:')} ${adjustedOwners}`);
-          console.log(`${chalk.green('Owners resolved:')} ${resolvedOwners}`);
-          console.log(
-            `${chalk.green('Owner resolution rate:')} ${result.adjustmentSummary.resolutionRate.owners}%`
-          );
-          console.log();
-          console.log(`${chalk.blue('Original token discrepancies:')} ${originalTokens}`);
-          console.log(`${chalk.blue('Adjusted token discrepancies:')} ${adjustedTokens}`);
-          console.log(`${chalk.green('Token discrepancies resolved:')} ${resolvedTokens}`);
-          console.log(
-            `${chalk.green('Token resolution rate:')} ${result.adjustmentSummary.resolutionRate.tokens}%`
-          );
-
-          if (resolvedOwners === originalOwners && resolvedTokens === originalTokens) {
-            console.log(chalk.green.bold('\n🎉 ALL DISCREPANCIES RESOLVED BY TRANSFER ANALYSIS!'));
-          } else if (resolvedOwners > 0 || resolvedTokens > 0) {
-            console.log(chalk.yellow.bold('\n✅ PARTIAL RESOLUTION BY TRANSFER ANALYSIS'));
-          } else {
-            console.log(chalk.red.bold('\n❌ NO DISCREPANCIES RESOLVED BY TRANSFER ANALYSIS'));
-          }
-          console.log(chalk.cyan('='.repeat(80)));
-
-          // Add adjusted comparison to results
-          result.adjustedComparison = adjustedResult;
-        } else {
-          console.log(
-            chalk.yellow('\n⚠️  No relevant transfers found - skipping balance adjustment')
-          );
-        }
-      } else {
-        console.log(
-          chalk.yellow('\n⚠️  Skipping transfer analysis: No Polygon block number specified')
-        );
-      }
+    if (result.discrepancies.length === 0) {
+      console.log(chalk.green('\n✅ No discrepancies found - all data matches perfectly!'));
     } else {
-      console.log(chalk.green('\n✅ No discrepancies found - skipping transfer analysis'));
+      console.log(
+        chalk.yellow(`\n⚠️  Found ${result.discrepancies.length} discrepancies - see results above`)
+      );
     }
 
-    // Save results (including transfer analysis if performed)
+    // Save results
     await saveResults(result);
 
     console.log(chalk.green.bold('\n✨ Comparison completed successfully!'));

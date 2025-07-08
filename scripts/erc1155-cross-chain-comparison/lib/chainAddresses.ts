@@ -10,15 +10,12 @@ export const baseSepoliaAddresses = {
   kekContract: '0x03f2D8689177d2ebc9686C01065818c02C053f6a',
   gltrContract: '0x8C3A62b925663Aa442e5dc7766E596F1093CFdcF',
 
-  // realmDiamond: '0x37D140074B2f771bEa7ef23288EB87064e45bF8D',
   realmDiamond: '0xD30400839aCbFfE2847095BC3Be7c510CE812300',
-  // installationsDiamond: '0x5Aefdc5283B24EEa7b50FFBBf7FB8A2bD4537609',
   installationsDiamond: '0xc004E055Fe865E857684D3C133E3420FD7622E37', // new (testing)
-  // tilesDiamond: '0x96B19Fa954d961fAD4b665e3259C72466ca4C1dA',
   tilesDiamond: '0xD75808C958a7e6Cc930bDdF1d83F80C6B87c5189',
 
-  fakeGotchisNFT: '0xD0dCC1d1E22D490e5270631787E1866E773b16C7',
-  fakeCardsDiamond: '0xE4E508dab5D7d98f4c06aB6D24bB225588036C9D',
+  fakeGotchisNFT: '0x90C1c5EfbCBb288f961E46D1A9FcbfC762a765Ff',
+  fakeCardsDiamond: '0xa3Ac88A7eE4C38F71bd8C06158Edf7b42C4909bA',
 
   gbmDiamond: '0x0f685B66D7a5E67EDC584c5FdD28E38ba05fAFbb',
   guardianSkinsDiamond: '0xab1e7e320f02107bf2748179ed0c0bcfd5532e4a',

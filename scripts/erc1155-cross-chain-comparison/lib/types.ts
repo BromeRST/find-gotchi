@@ -17,7 +17,6 @@ export interface AlchemyOwnersResponse {
 
 export interface ChainConfig {
   name: string;
-  alchemyEndpoint: string;
   contractAddress: string;
   maxRequests?: number;
   requestDelay?: number;
@@ -55,69 +54,5 @@ export interface ComparisonResult {
   discrepancies: OwnerComparison[];
   detailedReport: {
     ownersOnlyOnChain: { [chainName: string]: string[] };
-  };
-  transferAnalysis?: TransferAnalysis[];
-  adjustedComparison?: ComparisonResult;
-  adjustmentSummary?: AdjustmentSummary;
-}
-
-export interface NftTransfer {
-  contract: {
-    address: string;
-    name?: string;
-    symbol?: string;
-    totalSupply?: string;
-    tokenType: string;
-  };
-  tokenId: string;
-  tokenType: string;
-  title?: string;
-  description?: string;
-  timeLastUpdated: string;
-  rawMetadata?: any;
-  tokenUri?: {
-    raw: string;
-    gateway: string;
-  };
-  media?: Array<{
-    raw: string;
-    gateway: string;
-    thumbnail?: string;
-    format?: string;
-    bytes?: number;
-  }>;
-  from: string;
-  to: string;
-  transactionHash: string;
-  blockNumber: string;
-  transferAmount: number; // Amount of tokens transferred (1 for ERC721, actual amount for ERC1155)
-}
-
-export interface TransferAnalysis {
-  address: string;
-  transfersFound: number;
-  relevantTransfers: NftTransfer[];
-  blockRange: {
-    from: string;
-    to: string;
-  };
-}
-
-export interface AdjustmentSummary {
-  originalDiscrepancies: {
-    ownersWithDiscrepancies: number;
-    tokenDiscrepancies: number;
-  };
-  adjustedDiscrepancies: {
-    ownersWithDiscrepancies: number;
-    tokenDiscrepancies: number;
-  };
-  resolved: {
-    ownersWithDiscrepancies: number;
-    tokenDiscrepancies: number;
-  };
-  resolutionRate: {
-    owners: number; // percentage
-    tokens: number; // percentage
   };
 }

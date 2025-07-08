@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { ComparisonResult, NftTransfer, TransferAnalysis } from './types';
+import { ComparisonResult } from './types';
 
 export function printResults(result: ComparisonResult): void {
   console.log(chalk.cyan.bold(`\n🔍 ERC1155 CROSS-CHAIN COMPARISON RESULTS`));
@@ -128,87 +128,6 @@ export function printResults(result: ComparisonResult): void {
   } else {
     console.log(chalk.green.bold('\n✅ NO DISCREPANCIES FOUND!'));
     console.log('All owners have consistent balances across chains.');
-  }
-
-  console.log(chalk.cyan('\n' + '='.repeat(80)));
-}
-
-export function printTransferAnalysis(
-  transferAnalysis: TransferAnalysis[],
-  collectionName: string
-): void {
-  console.log(chalk.cyan.bold('\n📊 TRANSFER ANALYSIS SUMMARY'));
-  console.log(chalk.magenta.bold(`📦 Collection: ${collectionName}`));
-  console.log(chalk.cyan('='.repeat(80)));
-
-  const addressesWithTransfers = transferAnalysis.filter(
-    analysis => analysis.relevantTransfers.length > 0
-  );
-  const totalRelevantTransfers = transferAnalysis.reduce(
-    (sum, analysis) => sum + analysis.relevantTransfers.length,
-    0
-  );
-
-  console.log(chalk.yellow.bold('\n📈 SUMMARY:'));
-  console.log(`${chalk.blue('Addresses analyzed:')} ${transferAnalysis.length}`);
-  console.log(
-    `${chalk.blue('Addresses with relevant transfers:')} ${addressesWithTransfers.length}`
-  );
-  console.log(`${chalk.blue('Total relevant transfers found:')} ${totalRelevantTransfers}`);
-
-  if (addressesWithTransfers.length > 0) {
-    console.log(chalk.red.bold('\n🔄 ADDRESSES WITH TRANSFER ACTIVITY:'));
-
-    addressesWithTransfers.forEach((analysis, index) => {
-      console.log(`\n${chalk.red(`${index + 1}. ${analysis.address}`)}`);
-      console.log(`   ${chalk.blue('Relevant transfers:')} ${analysis.relevantTransfers.length}`);
-
-      // Group transfers by token ID
-      const transfersByToken = new Map<string, NftTransfer[]>();
-      analysis.relevantTransfers.forEach(transfer => {
-        // NFT API returns one transfer per token, so we group by tokenId directly
-        if (!transfersByToken.has(transfer.tokenId)) {
-          transfersByToken.set(transfer.tokenId, []);
-        }
-        transfersByToken.get(transfer.tokenId)!.push(transfer);
-      });
-
-      transfersByToken.forEach((transfers, tokenId) => {
-        console.log(`\n   ${chalk.yellow(`Token ${tokenId}:`)} ${transfers.length} transfers`);
-
-        transfers.forEach(transfer => {
-          const direction =
-            transfer.to.toLowerCase() === analysis.address.toLowerCase() ? 'RECEIVED' : 'SENT';
-          // blockNumber and tokenId are already in decimal format from the API
-          const blockNum = transfer.blockNumber;
-          const tokenIdDecimal = transfer.tokenId;
-          const otherParty = direction === 'RECEIVED' ? transfer.from : transfer.to;
-
-          console.log(
-            `     ${direction === 'RECEIVED' ? chalk.green('↓') : chalk.red('↑')} Block ${blockNum}: ${direction} ${transfer.transferAmount || 1}x Token ${tokenIdDecimal} ${direction === 'RECEIVED' ? 'from' : 'to'} ${otherParty}`
-          );
-        });
-      });
-    });
-
-    console.log(chalk.cyan.bold('\n💡 ANALYSIS:'));
-    console.log(
-      chalk.yellow('The above addresses had transfer activity after the snapshot block.')
-    );
-    console.log(
-      chalk.yellow('This likely explains the discrepancies between Polygon and Base Sepolia.')
-    );
-    console.log(
-      chalk.yellow('The transfers occurred on Polygon after the snapshot, changing the balances.')
-    );
-  } else {
-    console.log(chalk.green.bold('\n✅ NO TRANSFER ACTIVITY FOUND'));
-    console.log(chalk.yellow('No relevant transfers were found for addresses with discrepancies.'));
-    console.log(
-      chalk.yellow(
-        'The discrepancies may be due to other factors or transfers outside the analyzed range.'
-      )
-    );
   }
 
   console.log(chalk.cyan('\n' + '='.repeat(80)));

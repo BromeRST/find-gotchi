@@ -19,38 +19,42 @@ interface CollectionDefinition {
 }
 
 const COLLECTIONS: CollectionDefinition[] = [
+  // {
+  //   name: 'Installations',
+  //   baseSepoliaAddress: baseSepoliaAddresses.installationsDiamond,
+  //   polygonAddress: polygonAddresses.installationsDiamond,
+  //   blockNumber: {
+  //     polygon: '73121283', // You can set specific block numbers for each collection
+  //     // baseSepolia: '12345678', // Uncomment and set if needed
+  //   },
+  // },
+  // {
+  //   name: 'Tiles',
+  //   baseSepoliaAddress: baseSepoliaAddresses.tilesDiamond,
+  //   polygonAddress: polygonAddresses.tilesDiamond,
+  //   blockNumber: {
+  //     polygon: '73121283', // You can set specific block numbers for each collection
+  //     // baseSepolia: '12345678', // Uncomment and set if needed
+  //   },
+  // },
   {
-    name: 'Installations',
-    baseSepoliaAddress: baseSepoliaAddresses.installationsDiamond,
-    polygonAddress: polygonAddresses.installationsDiamond,
-    blockNumber: {
-      polygon: '73121283', // You can set specific block numbers for each collection
-      // baseSepolia: '12345678', // Uncomment and set if needed
-    },
-  },
-  {
-    name: 'Tiles',
-    baseSepoliaAddress: baseSepoliaAddresses.tilesDiamond,
-    polygonAddress: polygonAddresses.tilesDiamond,
+    name: 'FakeCards',
+    baseSepoliaAddress: baseSepoliaAddresses.fakeCardsDiamond,
+    polygonAddress: polygonAddresses.fakeCardsDiamond,
     blockNumber: {
       polygon: '73121283', // You can set specific block numbers for each collection
       // baseSepolia: '12345678', // Uncomment and set if needed
     },
   },
   // {
-  //   name: 'FakeCards',
-  //   baseSepoliaAddress: baseSepoliaAddresses.fakeCardsDiamond,
-  //   polygonAddress: polygonAddresses.fakeCardsDiamond,
+  //   name: 'Forge',
+  //   baseSepoliaAddress: baseSepoliaAddresses.forgeDiamond,
+  //   polygonAddress: polygonAddresses.forgeDiamond,
+  //   blockNumber: {
+  //     polygon: '73121283', // You can set specific block numbers for each collection
+  //     // baseSepolia: '12345678', // Uncomment and set if needed
+  //   },
   // },
-  {
-    name: 'Forge',
-    baseSepoliaAddress: baseSepoliaAddresses.forgeDiamond,
-    polygonAddress: polygonAddresses.forgeDiamond,
-    blockNumber: {
-      polygon: '73121283', // You can set specific block numbers for each collection
-      // baseSepolia: '12345678', // Uncomment and set if needed
-    },
-  },
 ];
 
 // Function to run comparison for a single collection
