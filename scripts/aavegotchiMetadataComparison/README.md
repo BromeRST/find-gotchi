@@ -238,7 +238,7 @@ Total Discrepancies Found: 25
 The script uses these endpoints:
 
 - **Polygon**: `aavegotchi-core-matic/version/matic-add-owners-to-wearables-6`
-- **Base Sepolia**: `aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-16`
+- **Base Sepolia**: `aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-27`
 
 ### Block Number
 

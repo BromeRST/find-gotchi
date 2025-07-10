@@ -21,6 +21,7 @@
     "analyze-wearables": "ts-node scripts/wearablesComparison/index.ts",
     "compare-aavegotchi-metadata": "ts-node scripts/aavegotchiMetadataComparison/index.ts",
     "compare-fakegotchis-metadata": "ts-node scripts/fakegotchisMetadataComparison/index.ts",
+    "compare-fakegotchi-statistics": "ts-node scripts/fakegotchiStatistics/index.ts",
     "compare-onchain-gotchi": "ts-node scripts/onChainGotchiComparison/index.ts",
     "compare-onchain-gotchi-all": "ts-node scripts/onChainGotchiComparison/index.ts all"
   },

@@ -14,6 +14,7 @@ The script fetches Fake Gotchi NFT data from two different subgraphs and perform
 ## Features
 
 - **Comprehensive Field Comparison**: Compares all fields from the MetadataInfo and FakeGotchiNFTTokenInfo fragments
+- **Smart Burn Address Handling**: Different burn addresses (0x0000...0000, 0x0000...0001, 0x0000...dead, etc.) are treated as equivalent to avoid false discrepancies
 - **Missing Entity Detection**: Identifies fake gotchis that exist on one subgraph but not the other
 - **Pagination Support**: Efficiently handles large datasets using identifier-based pagination
 - **Retry Logic**: Robust error handling with exponential backoff
@@ -102,6 +103,19 @@ This approach ensures:
 - Complete data retrieval without missing entities
 - Efficient pagination using the identifier field
 - Consistent ordering for reliable pagination
+
+## Burn Address Handling
+
+The script includes smart handling for burn addresses to avoid false discrepancies. When comparing the `owner` field, the following addresses are treated as equivalent (all represent "burned" tokens):
+
+- `0x0000000000000000000000000000000000000000` (zero address)
+- `0x0000000000000000000000000000000000000001` (zero address with 1)
+- `0x000000000000000000000000000000000000dead` (dead address)
+- `0xffffffffffffffffffffffffffffffffffffffff` (max address)
+- `0x000000000000000000000000000000000000beef` (beef address)
+- `0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead` (dead pattern)
+
+This means that if one subgraph shows owner as `0x0000000000000000000000000000000000000000` and another shows `0x0000000000000000000000000000000000000001`, this will **not** be reported as a discrepancy since both represent burned tokens.
 
 ## Output
 
