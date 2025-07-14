@@ -14,8 +14,8 @@ export const baseSepoliaAddresses = {
   installationsDiamond: '0xc004E055Fe865E857684D3C133E3420FD7622E37', // new (testing)
   tilesDiamond: '0xD75808C958a7e6Cc930bDdF1d83F80C6B87c5189',
 
-  fakeGotchisNFT: '0xF0aaeaF461B5708193AA7667C94fc609835bBA33',
-  fakeCardsDiamond: '0xc57E6537d9511f59D5eea48785d5b65c9264e512',
+  fakeGotchisNFT: '0x90C1c5EfbCBb288f961E46D1A9FcbfC762a765Ff',
+  fakeCardsDiamond: '0xa3Ac88A7eE4C38F71bd8C06158Edf7b42C4909bA',
 
   gbmDiamond: '0x0f685B66D7a5E67EDC584c5FdD28E38ba05fAFbb',
   guardianSkinsDiamond: '0xab1e7e320f02107bf2748179ed0c0bcfd5532e4a',
