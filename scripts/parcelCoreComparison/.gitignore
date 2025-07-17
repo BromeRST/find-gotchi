@@ -1,0 +1,32 @@
+# Results directory
+results/
+
+# Environment variables
+.env
+
+# Node modules
+node_modules/
+
+# TypeScript build files
+dist/
+build/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock 
