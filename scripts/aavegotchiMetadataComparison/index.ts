@@ -158,12 +158,12 @@ function getChainConfigs(): ChainConfig[] {
   return [
     {
       name: 'Polygon',
-      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/version/matic-add-owners-to-wearables-6/api`,
-      blockNumber: 73121283,
+      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/api`,
+      blockNumber: 74262598,
     },
     {
-      name: 'Base Sepolia',
-      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-33/api`,
+      name: 'Base',
+      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-base/api`,
     },
   ];
 }
@@ -383,7 +383,6 @@ function compareAavegotchiMetadata(
     'toNextLevel',
     'usedSkillPoints',
     'withSetsRarityScore',
-    'lastInteracted',
     'equippedSetID',
     'equippedSetName',
   ];
@@ -531,7 +530,7 @@ function printSummary(result: ComparisonResult): void {
   console.log(chalk.green(`Identical: ${result.summary.identicalCount}`));
   console.log(chalk.yellow(`With Discrepancies: ${result.summary.discrepantCount}`));
   console.log(chalk.red(`Missing on Polygon: ${result.summary.missingPolygonCount}`));
-  console.log(chalk.red(`Missing on Base Sepolia: ${result.summary.missingBaseSepoliaCount}`));
+  console.log(chalk.red(`Missing on Base: ${result.summary.missingBaseSepoliaCount}`));
 
   // Display discrepancies by field
   const fieldDiscrepancies = Object.entries(result.summary.discrepanciesByField);
@@ -555,7 +554,7 @@ function printSummary(result: ComparisonResult): void {
   }
 
   if (result.summary.missingBaseSepoliaCount > 0) {
-    console.log(chalk.red('\n--- Missing on Base Sepolia (first 10) ---'));
+    console.log(chalk.red('\n--- Missing on Base (first 10) ---'));
     result.missingOnBaseSepolia.slice(0, 10).forEach(id => {
       console.log(chalk.red(`  - Gotchi ID: ${id}`));
     });
@@ -574,7 +573,7 @@ function printSummary(result: ComparisonResult): void {
       discrepancies.slice(0, 3).forEach(disc => {
         console.log(chalk.white(`  Field: ${disc.field}`));
         console.log(chalk.blue(`    Polygon: ${JSON.stringify(disc.polygonValue)}`));
-        console.log(chalk.magenta(`    Base Sepolia: ${JSON.stringify(disc.baseSepoliaValue)}`));
+        console.log(chalk.magenta(`    Base: ${JSON.stringify(disc.baseSepoliaValue)}`));
       });
       if (discrepancies.length > 3) {
         console.log(chalk.gray(`  ... and ${discrepancies.length - 3} more discrepancies`));
@@ -595,7 +594,7 @@ async function main(): Promise<void> {
     // Fetch data from both chains in parallel
     const [polygonDataRaw, baseSepoliaData] = await Promise.all([
       fetchAllAavegotchis(chainConfigs[0]), // Polygon
-      fetchAllAavegotchis(chainConfigs[1]), // Base Sepolia
+      fetchAllAavegotchis(chainConfigs[1]), // Base
     ]);
 
     // Fix Polygon wearable set calculations

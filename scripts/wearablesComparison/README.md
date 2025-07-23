@@ -1,12 +1,12 @@
 # Wearables Comparison Script
 
-This script analyzes Aavegotchi wearable ownership by comparing data from the subgraph with on-chain contract balances across multiple chains (Polygon and Base Sepolia).
+This script analyzes Aavegotchi wearable ownership by comparing data from the subgraph with on-chain contract balances across multiple chains (Polygon and Base).
 
 ## Overview
 
 The script performs the following operations:
 
-1. **Multi-Chain Analysis**: Analyzes both Polygon and Base Sepolia chains
+1. **Multi-Chain Analysis**: Analyzes both Polygon and Base chains
 2. **Discovers Item IDs**: Automatically finds all available wearable item IDs from 0 upwards per chain
 3. **Fetches Subgraph Data**: For each item, retrieves all owners and their balances from the respective chain subgraph
 4. **Verifies Contract Balances**:

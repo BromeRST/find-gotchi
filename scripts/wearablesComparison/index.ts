@@ -4,14 +4,14 @@ import chalk from 'chalk';
 import dotenv from 'dotenv';
 import {
   polygonAddresses,
-  baseSepoliaAddresses,
+  baseAddresses,
 } from '../erc1155-cross-chain-comparison/lib/chainAddresses';
 import { ownerContractAddressesOnPolygon } from '../lib';
 
 dotenv.config();
 
 const subgraphEndpoint = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/version/matic-add-owners-to-wearables-6/api`;
-const sepoliaSgEndpoint = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-33/api`;
+const baseEndpoint = `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-base/api`;
 
 interface Owner {
   owner: string;
@@ -51,16 +51,16 @@ interface CrossChainDiscrepancy {
   itemId: string;
   address: string;
   polygonBalance: string;
-  baseSepoliaBalance: string;
-  discrepancyType: 'polygon_only' | 'base_sepolia_only' | 'balance_mismatch';
+  baseBalance: string;
+  discrepancyType: 'polygon_only' | 'base_only' | 'balance_mismatch';
 }
 
 interface ItemDiscrepancyGroup {
   itemId: string;
   polygonTotalOwners: number;
-  baseSepoliaTotalOwners: number;
+  baseTotalOwners: number;
   polygonTotalBalance: string;
-  baseSepoliaTotalBalance: string;
+  baseTotalBalance: string;
   discrepancies: Omit<CrossChainDiscrepancy, 'itemId'>[];
 }
 
@@ -74,23 +74,23 @@ interface ChainSpecificData {
 interface ItemBalanceComparison {
   itemId: string;
   polygonTotalOwners: number;
-  baseSepoliaTotalOwners: number;
+  baseTotalOwners: number;
   polygonTotalBalance: string;
-  baseSepoliaTotalBalance: string;
+  baseTotalBalance: string;
   balancesMatch: boolean;
 }
 
 interface AavegotchiDiamondComparison {
   itemId: string;
   polygonContractBalance: string;
-  baseSepoliaContractBalance: string;
+  baseContractBalance: string;
   contractBalancesMatch: boolean;
   polygonEquippedCount: string;
-  baseSepoliaEquippedCount: string;
+  baseEquippedCount: string;
   equippedCountsMatch: boolean;
   missingAavegotchiIds: {
-    missingFromBaseSepolia: string[]; // Aavegotchi IDs that have this item equipped on Polygon but not on Base Sepolia
-    missingFromPolygon: string[]; // Aavegotchi IDs that have this item equipped on Base Sepolia but not on Polygon
+    missingFromBase: string[]; // Aavegotchi IDs that have this item equipped on Polygon but not on Base
+    missingFromPolygon: string[]; // Aavegotchi IDs that have this item equipped on Base but not on Polygon
   };
 }
 
@@ -100,16 +100,16 @@ interface ComparisonResult {
   totalDiscrepancies: number;
   discrepancyBreakdown: {
     polygonOnly: number;
-    baseSepoliaOnly: number;
+    baseOnly: number;
     balanceMismatch: number;
   };
   chainSpecificData: {
     polygon: ChainSpecificData;
-    baseSepolia: ChainSpecificData;
+    base: ChainSpecificData;
   };
   missingItems: {
-    missingFromBaseSepolia: string[]; // Items that exist on Polygon but not on Base Sepolia
-    missingFromPolygon: string[]; // Items that exist on Base Sepolia but not on Polygon
+    missingFromBase: string[]; // Items that exist on Polygon but not on Base
+    missingFromPolygon: string[]; // Items that exist on Base but not on Polygon
   };
   itemBalanceComparisons: { [itemId: string]: ItemBalanceComparison }; // Only items with balance discrepancies
   discrepanciesByItem: { [itemId: string]: ItemDiscrepancyGroup };
@@ -157,15 +157,15 @@ export const EXCLUDED_ADDRESSES = new Set([
   polygonAddresses.treasury.toLowerCase(),
   polygonAddresses.maticBurnAddress.toLowerCase(),
 
-  // Base Sepolia contract addresses
-  baseSepoliaAddresses.realmDiamond.toLowerCase(),
-  baseSepoliaAddresses.installationsDiamond.toLowerCase(),
-  baseSepoliaAddresses.tilesDiamond.toLowerCase(),
-  // baseSepoliaAddresses.aavegotchiDiamond.toLowerCase(),
-  baseSepoliaAddresses.wearableDiamond.toLowerCase(),
-  baseSepoliaAddresses.forgeDiamond.toLowerCase(),
-  baseSepoliaAddresses.gbmDiamond.toLowerCase(),
-  baseSepoliaAddresses.guardianSkinsDiamond.toLowerCase(),
+  // Base contract addresses
+  // baseAddresses.realmDiamond.toLowerCase(),
+  // baseAddresses.installationsDiamond.toLowerCase(),
+  // baseAddresses.tilesDiamond.toLowerCase(),
+  // baseAddresses.aavegotchiDiamond.toLowerCase(),
+  baseAddresses.wearableDiamond.toLowerCase(),
+  baseAddresses.forgeDiamond.toLowerCase(),
+  // baseAddresses.gbmDiamond.toLowerCase(),
+  // baseAddresses.guardianSkinsDiamond.toLowerCase(),
 
   // Owner contract addresses from Polygon
   ...ownerContractAddressesOnPolygon.map(addr => addr.toLowerCase()),
@@ -182,8 +182,8 @@ function validateEnvironment(): void {
     throw new Error('POLYGON_RPC_URL environment variable is required');
   }
 
-  if (!process.env.BASE_SEPOLIA_RPC_URL) {
-    throw new Error('BASE_SEPOLIA_RPC_URL environment variable is required');
+  if (!process.env.BASE_RPC_URL) {
+    throw new Error('BASE_RPC_URL environment variable is required');
   }
 }
 
@@ -194,13 +194,13 @@ function getChainConfigs(): ChainConfig[] {
       subgraphEndpoint,
       rpcUrl: process.env.POLYGON_RPC_URL!,
       contractAddress: polygonAddresses.aavegotchiDiamond,
-      blockNumber: 73121283, // Set manually if needed: e.g., 50000000
+      blockNumber: 74262598, // Set manually if needed: e.g., 50000000
     },
     {
-      name: 'Base Sepolia',
-      subgraphEndpoint: sepoliaSgEndpoint, // Not used - we'll use Polygon owners for both chains
-      rpcUrl: process.env.BASE_SEPOLIA_RPC_URL!,
-      contractAddress: baseSepoliaAddresses.wearableDiamond,
+      name: 'Base',
+      subgraphEndpoint: baseEndpoint, // Not used - we'll use Polygon owners for both chains
+      rpcUrl: process.env.BASE_RPC_URL!,
+      contractAddress: baseAddresses.wearableDiamond,
       blockNumber: undefined, // Set manually if needed: e.g., 10000000
     },
   ];
@@ -218,7 +218,7 @@ function isAavegotchiDiamond(address: string): boolean {
   const lowerAddress = address.toLowerCase();
   return (
     lowerAddress === polygonAddresses.aavegotchiDiamond.toLowerCase() ||
-    lowerAddress === baseSepoliaAddresses.aavegotchiDiamond.toLowerCase()
+    lowerAddress === baseAddresses.aavegotchiDiamond.toLowerCase()
   );
 }
 
@@ -664,12 +664,12 @@ function mapAddressForComparison(address: string, fromChain: string, toChain: st
   const lowerAddress = address.toLowerCase();
 
   // Map Aavegotchi Diamond addresses between chains
-  if (fromChain === 'Polygon' && toChain === 'Base Sepolia') {
+  if (fromChain === 'Polygon' && toChain === 'Base') {
     if (lowerAddress === polygonAddresses.aavegotchiDiamond.toLowerCase()) {
-      return baseSepoliaAddresses.aavegotchiDiamond.toLowerCase();
+      return baseAddresses.aavegotchiDiamond.toLowerCase();
     }
-  } else if (fromChain === 'Base Sepolia' && toChain === 'Polygon') {
-    if (lowerAddress === baseSepoliaAddresses.aavegotchiDiamond.toLowerCase()) {
+  } else if (fromChain === 'Base' && toChain === 'Polygon') {
+    if (lowerAddress === baseAddresses.aavegotchiDiamond.toLowerCase()) {
       return polygonAddresses.aavegotchiDiamond.toLowerCase();
     }
   }
@@ -680,9 +680,9 @@ function mapAddressForComparison(address: string, fromChain: string, toChain: st
 
 async function compareChainResults(
   polygonAnalyses: ItemAnalysis[],
-  baseSepoliaAnalyses: ItemAnalysis[],
+  baseAnalyses: ItemAnalysis[],
   polygonConfig: ChainConfig,
-  baseSepoliaConfig: ChainConfig
+  baseConfig: ChainConfig
 ): Promise<ComparisonResult> {
   const discrepanciesByItem: { [itemId: string]: ItemDiscrepancyGroup } = {};
   const itemBalanceComparisons: { [itemId: string]: ItemBalanceComparison } = {};
@@ -691,9 +691,9 @@ async function compareChainResults(
 
   // Create maps for easier lookup - using EFFECTIVE BALANCES (contract + equipped count for Aavegotchi Diamond, contract only for others)
   const polygonBalancesByItem = new Map<string, Map<string, string>>();
-  const baseSepoliaBalancesByItem = new Map<string, Map<string, string>>();
+  const baseBalancesByItem = new Map<string, Map<string, string>>();
   const polygonAnalysisByItem = new Map<string, ItemAnalysis>();
-  const baseSepoliaAnalysisByItem = new Map<string, ItemAnalysis>();
+  const baseAnalysisByItem = new Map<string, ItemAnalysis>();
 
   // Build maps of effective balances by item ID and store analyses
   for (const analysis of polygonAnalyses) {
@@ -711,7 +711,7 @@ async function compareChainResults(
     polygonAnalysisByItem.set(analysis.itemId, analysis);
   }
 
-  for (const analysis of baseSepoliaAnalyses) {
+  for (const analysis of baseAnalyses) {
     const balanceMap = new Map<string, string>();
     for (const owner of analysis.owners) {
       if (owner.contractBalance !== 'ERROR') {
@@ -722,36 +722,33 @@ async function compareChainResults(
         }
       }
     }
-    baseSepoliaBalancesByItem.set(analysis.itemId, balanceMap);
-    baseSepoliaAnalysisByItem.set(analysis.itemId, analysis);
+    baseBalancesByItem.set(analysis.itemId, balanceMap);
+    baseAnalysisByItem.set(analysis.itemId, analysis);
   }
 
   // Find all unique item IDs across both chains
-  const allItemIds = new Set([
-    ...polygonBalancesByItem.keys(),
-    ...baseSepoliaBalancesByItem.keys(),
-  ]);
+  const allItemIds = new Set([...polygonBalancesByItem.keys(), ...baseBalancesByItem.keys()]);
 
   for (const itemId of allItemIds) {
     const polygonBalances = polygonBalancesByItem.get(itemId) || new Map();
-    const baseSepoliaBalances = baseSepoliaBalancesByItem.get(itemId) || new Map();
+    const baseBalances = baseBalancesByItem.get(itemId) || new Map();
     const polygonAnalysis = polygonAnalysisByItem.get(itemId);
-    const baseSepoliaAnalysis = baseSepoliaAnalysisByItem.get(itemId);
+    const baseAnalysis = baseAnalysisByItem.get(itemId);
 
     const itemDiscrepancies: Omit<CrossChainDiscrepancy, 'itemId'>[] = [];
 
     // Find all unique addresses for this item across both chains, including mapped addresses
-    const allAddresses = new Set([...polygonBalances.keys(), ...baseSepoliaBalances.keys()]);
+    const allAddresses = new Set([...polygonBalances.keys(), ...baseBalances.keys()]);
 
     // Add mapped diamond addresses to ensure we compare them
     for (const address of polygonBalances.keys()) {
-      const mappedAddress = mapAddressForComparison(address, 'Polygon', 'Base Sepolia');
+      const mappedAddress = mapAddressForComparison(address, 'Polygon', 'Base');
       if (mappedAddress !== address.toLowerCase()) {
         allAddresses.add(mappedAddress);
       }
     }
-    for (const address of baseSepoliaBalances.keys()) {
-      const mappedAddress = mapAddressForComparison(address, 'Base Sepolia', 'Polygon');
+    for (const address of baseBalances.keys()) {
+      const mappedAddress = mapAddressForComparison(address, 'Base', 'Polygon');
       if (mappedAddress !== address.toLowerCase()) {
         allAddresses.add(mappedAddress);
       }
@@ -762,27 +759,21 @@ async function compareChainResults(
       if (isAddressExcluded(address)) continue;
 
       // Map addresses for cross-chain comparison (handles diamond addresses)
-      const mappedAddressForBaseSepolia = mapAddressForComparison(
-        address,
-        'Polygon',
-        'Base Sepolia'
-      );
-      const mappedAddressForPolygon = mapAddressForComparison(address, 'Base Sepolia', 'Polygon');
+      const mappedAddressForBase = mapAddressForComparison(address, 'Polygon', 'Base');
+      const mappedAddressForPolygon = mapAddressForComparison(address, 'Base', 'Polygon');
 
       const polygonBalance =
         polygonBalances.get(address) || polygonBalances.get(mappedAddressForPolygon) || '0';
-      const baseSepoliaBalance =
-        baseSepoliaBalances.get(address) ||
-        baseSepoliaBalances.get(mappedAddressForBaseSepolia) ||
-        '0';
+      const baseBalance =
+        baseBalances.get(address) || baseBalances.get(mappedAddressForBase) || '0';
 
       // Only report discrepancies where balances differ
-      if (polygonBalance !== baseSepoliaBalance) {
-        let discrepancyType: 'polygon_only' | 'base_sepolia_only' | 'balance_mismatch';
+      if (polygonBalance !== baseBalance) {
+        let discrepancyType: 'polygon_only' | 'base_only' | 'balance_mismatch';
 
         if (polygonBalance === '0') {
-          discrepancyType = 'base_sepolia_only';
-        } else if (baseSepoliaBalance === '0') {
+          discrepancyType = 'base_only';
+        } else if (baseBalance === '0') {
           discrepancyType = 'polygon_only';
         } else {
           discrepancyType = 'balance_mismatch';
@@ -791,7 +782,7 @@ async function compareChainResults(
         itemDiscrepancies.push({
           address,
           polygonBalance,
-          baseSepoliaBalance,
+          baseBalance,
           discrepancyType,
         });
       }
@@ -804,21 +795,21 @@ async function compareChainResults(
         return sum + balance;
       }, 0) || 0;
 
-    const baseSepoliaTotalBalance =
-      baseSepoliaAnalysis?.owners.reduce((sum, owner) => {
+    const baseTotalBalance =
+      baseAnalysis?.owners.reduce((sum, owner) => {
         const balance = parseInt(getEffectiveBalance(owner)) || 0;
         return sum + balance;
       }, 0) || 0;
 
     // Add balance comparison only for items with discrepancies
-    const balancesMatch = polygonTotalBalance.toString() === baseSepoliaTotalBalance.toString();
+    const balancesMatch = polygonTotalBalance.toString() === baseTotalBalance.toString();
     if (!balancesMatch) {
       itemBalanceComparisons[itemId] = {
         itemId,
         polygonTotalOwners: polygonAnalysis?.totalContractOwners || 0,
-        baseSepoliaTotalOwners: baseSepoliaAnalysis?.totalContractOwners || 0,
+        baseTotalOwners: baseAnalysis?.totalContractOwners || 0,
         polygonTotalBalance: polygonTotalBalance.toString(),
-        baseSepoliaTotalBalance: baseSepoliaTotalBalance.toString(),
+        baseTotalBalance: baseTotalBalance.toString(),
         balancesMatch: false,
       };
     }
@@ -827,19 +818,17 @@ async function compareChainResults(
     const polygonDiamondOwner = polygonAnalysis?.owners.find(owner =>
       isAavegotchiDiamond(owner.address)
     );
-    const baseSepoliaDiamondOwner = baseSepoliaAnalysis?.owners.find(owner =>
-      isAavegotchiDiamond(owner.address)
-    );
+    const baseDiamondOwner = baseAnalysis?.owners.find(owner => isAavegotchiDiamond(owner.address));
 
-    if (polygonDiamondOwner || baseSepoliaDiamondOwner) {
+    if (polygonDiamondOwner || baseDiamondOwner) {
       const polygonContractBalance = polygonDiamondOwner?.contractBalance || '0';
-      const baseSepoliaContractBalance = baseSepoliaDiamondOwner?.contractBalance || '0';
+      const baseContractBalance = baseDiamondOwner?.contractBalance || '0';
       const polygonEquippedCount = polygonDiamondOwner?.equippedWearablesCount || '0';
-      const baseSepoliaEquippedCount = baseSepoliaDiamondOwner?.equippedWearablesCount || '0';
+      const baseEquippedCount = baseDiamondOwner?.equippedWearablesCount || '0';
 
       // Fetch equipped Aavegotchi IDs for both chains to find missing ones
       let polygonAavegotchiIds: string[] = [];
-      let baseSepoliaAavegotchiIds: string[] = [];
+      let baseAavegotchiIds: string[] = [];
 
       try {
         if (polygonDiamondOwner) {
@@ -847,31 +836,24 @@ async function compareChainResults(
           polygonAavegotchiIds = polygonEquippedData.aavegotchiIds;
         }
 
-        if (baseSepoliaDiamondOwner) {
-          const baseSepoliaEquippedData = await fetchEquippedWearablesCount(
-            baseSepoliaConfig,
-            itemId
-          );
-          baseSepoliaAavegotchiIds = baseSepoliaEquippedData.aavegotchiIds;
+        if (baseDiamondOwner) {
+          const baseEquippedData = await fetchEquippedWearablesCount(baseConfig, itemId);
+          baseAavegotchiIds = baseEquippedData.aavegotchiIds;
         }
       } catch (error) {
         console.error(chalk.red(`Error fetching Aavegotchi IDs for item ${itemId}:`), error);
       }
 
       // Find missing Aavegotchi IDs
-      const missingFromBaseSepolia = polygonAavegotchiIds.filter(
-        id => !baseSepoliaAavegotchiIds.includes(id)
-      );
-      const missingFromPolygon = baseSepoliaAavegotchiIds.filter(
-        id => !polygonAavegotchiIds.includes(id)
-      );
+      const missingFromBase = polygonAavegotchiIds.filter(id => !baseAavegotchiIds.includes(id));
+      const missingFromPolygon = baseAavegotchiIds.filter(id => !polygonAavegotchiIds.includes(id));
 
-      const contractBalancesMatch = polygonContractBalance === baseSepoliaContractBalance;
-      const equippedCountsMatch = polygonEquippedCount === baseSepoliaEquippedCount;
+      const contractBalancesMatch = polygonContractBalance === baseContractBalance;
+      const equippedCountsMatch = polygonEquippedCount === baseEquippedCount;
       const hasDiscrepancies =
         !contractBalancesMatch ||
         !equippedCountsMatch ||
-        missingFromBaseSepolia.length > 0 ||
+        missingFromBase.length > 0 ||
         missingFromPolygon.length > 0;
 
       // Only include items with discrepancies
@@ -879,13 +861,13 @@ async function compareChainResults(
         aavegotchiDiamondComparisons[itemId] = {
           itemId,
           polygonContractBalance,
-          baseSepoliaContractBalance,
+          baseContractBalance,
           contractBalancesMatch,
           polygonEquippedCount,
-          baseSepoliaEquippedCount,
+          baseEquippedCount,
           equippedCountsMatch,
           missingAavegotchiIds: {
-            missingFromBaseSepolia,
+            missingFromBase,
             missingFromPolygon,
           },
         };
@@ -897,9 +879,9 @@ async function compareChainResults(
       discrepanciesByItem[itemId] = {
         itemId,
         polygonTotalOwners: polygonAnalysis?.totalContractOwners || 0,
-        baseSepoliaTotalOwners: baseSepoliaAnalysis?.totalContractOwners || 0,
+        baseTotalOwners: baseAnalysis?.totalContractOwners || 0,
         polygonTotalBalance: polygonTotalBalance.toString(),
-        baseSepoliaTotalBalance: baseSepoliaTotalBalance.toString(),
+        baseTotalBalance: baseTotalBalance.toString(),
         discrepancies: itemDiscrepancies,
       };
     }
@@ -911,24 +893,24 @@ async function compareChainResults(
   );
   const breakdown = {
     polygonOnly: allDiscrepancies.filter(d => d.discrepancyType === 'polygon_only').length,
-    baseSepoliaOnly: allDiscrepancies.filter(d => d.discrepancyType === 'base_sepolia_only').length,
+    baseOnly: allDiscrepancies.filter(d => d.discrepancyType === 'base_only').length,
     balanceMismatch: allDiscrepancies.filter(d => d.discrepancyType === 'balance_mismatch').length,
   };
 
   // Calculate missing items between chains
   const polygonItemIds = new Set(polygonBalancesByItem.keys());
-  const baseSepoliaItemIds = new Set(baseSepoliaBalancesByItem.keys());
+  const baseItemIds = new Set(baseBalancesByItem.keys());
 
-  const missingFromBaseSepolia = [...polygonItemIds]
-    .filter(itemId => !baseSepoliaItemIds.has(itemId))
+  const missingFromBase = [...polygonItemIds]
+    .filter(itemId => !baseItemIds.has(itemId))
     .sort((a, b) => parseInt(a as string) - parseInt(b as string));
-  const missingFromPolygon = [...baseSepoliaItemIds]
+  const missingFromPolygon = [...baseItemIds]
     .filter(itemId => !polygonItemIds.has(itemId))
     .sort((a, b) => parseInt(a as string) - parseInt(b as string));
 
   // Calculate chain-specific data
   const allPolygonOwners = new Set<string>();
-  const allBaseSepoliaOwners = new Set<string>();
+  const allBaseOwners = new Set<string>();
 
   // Collect all unique owners from each chain
   for (const analysis of polygonAnalyses) {
@@ -937,19 +919,17 @@ async function compareChainResults(
     }
   }
 
-  for (const analysis of baseSepoliaAnalyses) {
+  for (const analysis of baseAnalyses) {
     for (const owner of analysis.owners) {
-      allBaseSepoliaOwners.add(owner.address.toLowerCase());
+      allBaseOwners.add(owner.address.toLowerCase());
     }
   }
 
   // Calculate unique owners (exist on only one chain)
   const polygonUniqueOwners = new Set(
-    [...allPolygonOwners].filter(addr => !allBaseSepoliaOwners.has(addr))
+    [...allPolygonOwners].filter(addr => !allBaseOwners.has(addr))
   );
-  const baseSepoliaUniqueOwners = new Set(
-    [...allBaseSepoliaOwners].filter(addr => !allPolygonOwners.has(addr))
-  );
+  const baseUniqueOwners = new Set([...allBaseOwners].filter(addr => !allPolygonOwners.has(addr)));
 
   const chainSpecificData = {
     polygon: {
@@ -958,11 +938,11 @@ async function compareChainResults(
       uniqueOwners: polygonUniqueOwners.size,
       uniqueOwnerAddresses: [...polygonUniqueOwners].sort(),
     },
-    baseSepolia: {
-      totalItems: baseSepoliaAnalyses.length,
-      totalOwners: allBaseSepoliaOwners.size,
-      uniqueOwners: baseSepoliaUniqueOwners.size,
-      uniqueOwnerAddresses: [...baseSepoliaUniqueOwners].sort(),
+    base: {
+      totalItems: baseAnalyses.length,
+      totalOwners: allBaseOwners.size,
+      uniqueOwners: baseUniqueOwners.size,
+      uniqueOwnerAddresses: [...baseUniqueOwners].sort(),
     },
   };
 
@@ -973,7 +953,7 @@ async function compareChainResults(
     discrepancyBreakdown: breakdown,
     chainSpecificData,
     missingItems: {
-      missingFromBaseSepolia,
+      missingFromBase,
       missingFromPolygon,
     },
     itemBalanceComparisons,
@@ -1000,32 +980,32 @@ async function saveComparisonResults(comparisonResult: ComparisonResult): Promis
 
 async function analyzeMigrationComparison(): Promise<void> {
   console.log(chalk.cyan.bold('🚀 Starting Cross-Chain Wearables Comparison\n'));
-  console.log(chalk.blue('📝 Fetching owners from both Polygon and Base Sepolia subgraphs.'));
+  console.log(chalk.blue('📝 Fetching owners from both Polygon and Base subgraphs.'));
   console.log(chalk.blue('📊 This will compare wearable balances and ownership across chains.\n'));
 
   try {
     validateEnvironment();
     const chains = getChainConfigs();
     const polygonConfig = chains.find(c => c.name === 'Polygon')!;
-    const baseSepoliaConfig = chains.find(c => c.name === 'Base Sepolia')!;
+    const baseConfig = chains.find(c => c.name === 'Base')!;
 
     // Get all items with owners from both chains
     console.log(chalk.magenta.bold(`\n🔗 Finding items with owners on both chains\n`));
     const polygonItemIds = await findItemsWithOwners(polygonConfig);
-    const baseSepoliaItemIds = await findItemsWithOwners(baseSepoliaConfig);
+    const baseItemIds = await findItemsWithOwners(baseConfig);
 
     // Combine and deduplicate item IDs from both chains
-    const allItemIds = Array.from(new Set([...polygonItemIds, ...baseSepoliaItemIds])).sort(
+    const allItemIds = Array.from(new Set([...polygonItemIds, ...baseItemIds])).sort(
       (a, b) => parseInt(a) - parseInt(b)
     );
 
     console.log(chalk.green(`✓ Combined total items found: ${allItemIds.length}`));
     console.log(`  - Polygon items: ${polygonItemIds.length}`);
-    console.log(`  - Base Sepolia items: ${baseSepoliaItemIds.length}`);
+    console.log(`  - Base items: ${baseItemIds.length}`);
 
-    const migrationAnalyses: { polygon: ItemAnalysis[]; baseSepolia: ItemAnalysis[] } = {
+    const migrationAnalyses: { polygon: ItemAnalysis[]; base: ItemAnalysis[] } = {
       polygon: [],
-      baseSepolia: [],
+      base: [],
     };
 
     // For each item, get owners from BOTH subgraphs independently
@@ -1035,21 +1015,17 @@ async function analyzeMigrationComparison(): Promise<void> {
 
         // Get owners from both subgraphs independently
         const polygonOwners = await fetchAllOwnersForItem(polygonConfig, itemId);
-        const baseSepoliaOwners = await fetchAllOwnersForItem(baseSepoliaConfig, itemId);
+        const baseOwners = await fetchAllOwnersForItem(baseConfig, itemId);
 
         console.log(`  - Polygon owners: ${polygonOwners.length}`);
-        console.log(`  - Base Sepolia owners: ${baseSepoliaOwners.length}`);
+        console.log(`  - Base owners: ${baseOwners.length}`);
 
         // Analyze each chain with its own subgraph data
         const polygonAnalysis = await analyzeItemWithOwners(polygonConfig, itemId, polygonOwners);
-        const baseSepoliaAnalysis = await analyzeItemWithOwners(
-          baseSepoliaConfig,
-          itemId,
-          baseSepoliaOwners
-        );
+        const baseAnalysis = await analyzeItemWithOwners(baseConfig, itemId, baseOwners);
 
         migrationAnalyses.polygon.push(polygonAnalysis);
-        migrationAnalyses.baseSepolia.push(baseSepoliaAnalysis);
+        migrationAnalyses.base.push(baseAnalysis);
 
         // Add delay between items
         await delay(REQUEST_DELAY);
@@ -1061,16 +1037,16 @@ async function analyzeMigrationComparison(): Promise<void> {
     // Print individual chain summaries
     console.log(chalk.yellow.bold(`\n📊 Polygon Summary:`));
     printChainSummary(migrationAnalyses.polygon);
-    console.log(chalk.yellow.bold(`\n📊 Base Sepolia Summary:`));
-    printChainSummary(migrationAnalyses.baseSepolia);
+    console.log(chalk.yellow.bold(`\n📊 Base Summary:`));
+    printChainSummary(migrationAnalyses.base);
 
     // Perform cross-chain comparison
     console.log(chalk.cyan.bold('\n🔄 Performing Cross-Chain Comparison...\n'));
     const comparisonResult = await compareChainResults(
       migrationAnalyses.polygon,
-      migrationAnalyses.baseSepolia,
+      migrationAnalyses.base,
       polygonConfig,
-      baseSepoliaConfig
+      baseConfig
     );
 
     // Save comparison results to JSON
@@ -1123,47 +1099,43 @@ function printComparisonSummary(comparisonResult: ComparisonResult): void {
       console.log(`      ${chalk.yellow(address)}`);
     });
   }
-  console.log(`  Base Sepolia:`);
-  console.log(`    Total items: ${comparisonResult.chainSpecificData.baseSepolia.totalItems}`);
-  console.log(`    Total owners: ${comparisonResult.chainSpecificData.baseSepolia.totalOwners}`);
+  console.log(`  Base:`);
+  console.log(`    Total items: ${comparisonResult.chainSpecificData.base.totalItems}`);
+  console.log(`    Total owners: ${comparisonResult.chainSpecificData.base.totalOwners}`);
   console.log(
-    `    Unique owners (Base Sepolia only): ${chalk.blue(comparisonResult.chainSpecificData.baseSepolia.uniqueOwners)}`
+    `    Unique owners (Base only): ${chalk.blue(comparisonResult.chainSpecificData.base.uniqueOwners)}`
   );
-  if (comparisonResult.chainSpecificData.baseSepolia.uniqueOwnerAddresses.length > 0) {
-    console.log(`    Unique addresses (Base Sepolia only):`);
-    comparisonResult.chainSpecificData.baseSepolia.uniqueOwnerAddresses.forEach(address => {
+  if (comparisonResult.chainSpecificData.base.uniqueOwnerAddresses.length > 0) {
+    console.log(`    Unique addresses (Base only):`);
+    comparisonResult.chainSpecificData.base.uniqueOwnerAddresses.forEach(address => {
       console.log(`      ${chalk.blue(address)}`);
     });
   }
 
   console.log('\nDiscrepancy Breakdown:');
   console.log(`  Polygon only: ${chalk.yellow(comparisonResult.discrepancyBreakdown.polygonOnly)}`);
-  console.log(
-    `  Base Sepolia only: ${chalk.blue(comparisonResult.discrepancyBreakdown.baseSepoliaOnly)}`
-  );
+  console.log(`  Base only: ${chalk.blue(comparisonResult.discrepancyBreakdown.baseOnly)}`);
   console.log(
     `  Balance mismatches: ${chalk.red(comparisonResult.discrepancyBreakdown.balanceMismatch)}`
   );
 
   console.log('\nMissing Items:');
   console.log(
-    `  Items missing from Base Sepolia: ${chalk.yellow(comparisonResult.missingItems.missingFromBaseSepolia.length)}`
+    `  Items missing from Base: ${chalk.yellow(comparisonResult.missingItems.missingFromBase.length)}`
   );
   console.log(
     `  Items missing from Polygon: ${chalk.blue(comparisonResult.missingItems.missingFromPolygon.length)}`
   );
 
-  if (comparisonResult.missingItems.missingFromBaseSepolia.length > 0) {
-    console.log('\n  Items missing from Base Sepolia (first 20):');
-    const itemsToShow = comparisonResult.missingItems.missingFromBaseSepolia.slice(0, 20);
+  if (comparisonResult.missingItems.missingFromBase.length > 0) {
+    console.log('\n  Items missing from Base (first 20):');
+    const itemsToShow = comparisonResult.missingItems.missingFromBase.slice(0, 20);
     for (let i = 0; i < itemsToShow.length; i += 10) {
       const batch = itemsToShow.slice(i, i + 10);
       console.log(`    ${batch.join(', ')}`);
     }
-    if (comparisonResult.missingItems.missingFromBaseSepolia.length > 20) {
-      console.log(
-        `    ... and ${comparisonResult.missingItems.missingFromBaseSepolia.length - 20} more`
-      );
+    if (comparisonResult.missingItems.missingFromBase.length > 20) {
+      console.log(`    ... and ${comparisonResult.missingItems.missingFromBase.length - 20} more`);
     }
   }
 
@@ -1199,7 +1171,7 @@ function printComparisonSummary(comparisonResult: ComparisonResult): void {
       .map(item => ({
         ...item,
         balanceDifference: Math.abs(
-          parseInt(item.polygonTotalBalance) - parseInt(item.baseSepoliaTotalBalance)
+          parseInt(item.polygonTotalBalance) - parseInt(item.baseTotalBalance)
         ),
       }))
       .sort((a, b) => b.balanceDifference - a.balanceDifference)
@@ -1212,7 +1184,7 @@ function printComparisonSummary(comparisonResult: ComparisonResult): void {
         `      Polygon: ${item.polygonTotalOwners} owners, total balance: ${item.polygonTotalBalance}`
       );
       console.log(
-        `      Base Sepolia: ${item.baseSepoliaTotalOwners} owners, total balance: ${item.baseSepoliaTotalBalance}`
+        `      Base: ${item.baseTotalOwners} owners, total balance: ${item.baseTotalBalance}`
       );
       console.log(`      Difference: ${chalk.red(item.balanceDifference)}`);
     }
@@ -1228,9 +1200,9 @@ function printComparisonSummary(comparisonResult: ComparisonResult): void {
         itemId,
         discrepancyCount: group.discrepancies.length,
         polygonOwners: group.polygonTotalOwners,
-        baseSepoliaOwners: group.baseSepoliaTotalOwners,
+        baseOwners: group.baseTotalOwners,
         polygonTotalBalance: group.polygonTotalBalance,
-        baseSepoliaTotalBalance: group.baseSepoliaTotalBalance,
+        baseTotalBalance: group.baseTotalBalance,
       }))
       .sort((a, b) => b.discrepancyCount - a.discrepancyCount)
       .slice(0, 10);
@@ -1240,9 +1212,7 @@ function printComparisonSummary(comparisonResult: ComparisonResult): void {
       console.log(
         `    Polygon: ${item.polygonOwners} owners, total balance: ${item.polygonTotalBalance}`
       );
-      console.log(
-        `    Base Sepolia: ${item.baseSepoliaOwners} owners, total balance: ${item.baseSepoliaTotalBalance}`
-      );
+      console.log(`    Base: ${item.baseOwners} owners, total balance: ${item.baseTotalBalance}`);
     }
   }
 
@@ -1258,7 +1228,7 @@ function printComparisonSummary(comparisonResult: ComparisonResult): void {
         `    Polygon: ${group.polygonTotalOwners} owners, total balance: ${group.polygonTotalBalance}`
       );
       console.log(
-        `    Base Sepolia: ${group.baseSepoliaTotalOwners} owners, total balance: ${group.baseSepoliaTotalBalance}`
+        `    Base: ${group.baseTotalOwners} owners, total balance: ${group.baseTotalBalance}`
       );
 
       // Show first 3 discrepancies for this item
@@ -1267,11 +1237,11 @@ function printComparisonSummary(comparisonResult: ComparisonResult): void {
         const typeColor =
           discrepancy.discrepancyType === 'polygon_only'
             ? chalk.yellow
-            : discrepancy.discrepancyType === 'base_sepolia_only'
+            : discrepancy.discrepancyType === 'base_only'
               ? chalk.blue
               : chalk.red;
         console.log(
-          `    ${discrepancy.address}: ${typeColor(discrepancy.discrepancyType)} (Polygon: ${discrepancy.polygonBalance}, Base Sepolia: ${discrepancy.baseSepoliaBalance})`
+          `    ${discrepancy.address}: ${typeColor(discrepancy.discrepancyType)} (Polygon: ${discrepancy.polygonBalance}, Base: ${discrepancy.baseBalance})`
         );
       }
 
@@ -1306,8 +1276,8 @@ function printAavegotchiDiamondSummary(diamondComparisons: {
 
   const contractBalanceMatches = comparisons.filter(c => c.contractBalancesMatch).length;
   const equippedCountMatches = comparisons.filter(c => c.equippedCountsMatch).length;
-  const totalMissingFromBaseSepolia = comparisons.reduce(
-    (sum, c) => sum + c.missingAavegotchiIds.missingFromBaseSepolia.length,
+  const totalMissingFromBase = comparisons.reduce(
+    (sum, c) => sum + c.missingAavegotchiIds.missingFromBase.length,
     0
   );
   const totalMissingFromPolygon = comparisons.reduce(
@@ -1320,9 +1290,7 @@ function printAavegotchiDiamondSummary(diamondComparisons: {
     `Contract balance matches: ${chalk.green(contractBalanceMatches)}/${comparisons.length}`
   );
   console.log(`Equipped count matches: ${chalk.green(equippedCountMatches)}/${comparisons.length}`);
-  console.log(
-    `Total Aavegotchi IDs missing from Base Sepolia: ${chalk.red(totalMissingFromBaseSepolia)}`
-  );
+  console.log(`Total Aavegotchi IDs missing from Base: ${chalk.red(totalMissingFromBase)}`);
   console.log(`Total Aavegotchi IDs missing from Polygon: ${chalk.blue(totalMissingFromPolygon)}`);
 
   // Show contract balance mismatches
@@ -1331,7 +1299,7 @@ function printAavegotchiDiamondSummary(diamondComparisons: {
     console.log(chalk.red(`\nContract Balance Mismatches (${contractMismatches.length}):`));
     contractMismatches.slice(0, 10).forEach(c => {
       console.log(
-        `  Item ${c.itemId}: Polygon ${c.polygonContractBalance} ≠ Base Sepolia ${c.baseSepoliaContractBalance}`
+        `  Item ${c.itemId}: Polygon ${c.polygonContractBalance} ≠ Base ${c.baseContractBalance}`
       );
     });
     if (contractMismatches.length > 10) {
@@ -1345,7 +1313,7 @@ function printAavegotchiDiamondSummary(diamondComparisons: {
     console.log(chalk.red(`\nEquipped Count Mismatches (${equippedMismatches.length}):`));
     equippedMismatches.slice(0, 10).forEach(c => {
       console.log(
-        `  Item ${c.itemId}: Polygon ${c.polygonEquippedCount} ≠ Base Sepolia ${c.baseSepoliaEquippedCount}`
+        `  Item ${c.itemId}: Polygon ${c.polygonEquippedCount} ≠ Base ${c.baseEquippedCount}`
       );
     });
     if (equippedMismatches.length > 10) {
@@ -1356,20 +1324,20 @@ function printAavegotchiDiamondSummary(diamondComparisons: {
   // Show missing Aavegotchi IDs summary
   const itemsWithMissingIds = comparisons.filter(
     c =>
-      c.missingAavegotchiIds.missingFromBaseSepolia.length > 0 ||
+      c.missingAavegotchiIds.missingFromBase.length > 0 ||
       c.missingAavegotchiIds.missingFromPolygon.length > 0
   );
 
   if (itemsWithMissingIds.length > 0) {
     console.log(chalk.red(`\nItems with Missing Aavegotchi IDs (${itemsWithMissingIds.length}):`));
     itemsWithMissingIds.slice(0, 10).forEach(c => {
-      const missingFromBaseSepolia = c.missingAavegotchiIds.missingFromBaseSepolia;
+      const missingFromBase = c.missingAavegotchiIds.missingFromBase;
       const missingFromPolygon = c.missingAavegotchiIds.missingFromPolygon;
 
       console.log(`  Item ${c.itemId}:`);
-      if (missingFromBaseSepolia.length > 0) {
+      if (missingFromBase.length > 0) {
         console.log(
-          `    Missing from Base Sepolia (${missingFromBaseSepolia.length}): ${missingFromBaseSepolia.slice(0, 10).join(', ')}${missingFromBaseSepolia.length > 10 ? '...' : ''}`
+          `    Missing from Base (${missingFromBase.length}): ${missingFromBase.slice(0, 10).join(', ')}${missingFromBase.length > 10 ? '...' : ''}`
         );
       }
       if (missingFromPolygon.length > 0) {
