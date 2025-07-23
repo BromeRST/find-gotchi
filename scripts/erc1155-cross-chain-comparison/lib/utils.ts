@@ -1,6 +1,6 @@
 import { CollectionConfig, ComparisonResult } from './types';
 import dotenv from 'dotenv';
-import { baseSepoliaAddresses } from './chainAddresses';
+import { baseAddresses } from './chainAddresses';
 import { polygonAddresses } from './chainAddresses';
 import path from 'path';
 import chalk from 'chalk';
@@ -12,11 +12,7 @@ dotenv.config();
 // Configuration - Can be overridden by environment variables for multi-collection runs
 export function getCollectionConfig(): CollectionConfig {
   // Check if running from multi-collection script (has environment variables set)
-  if (
-    process.env.COLLECTION_NAME &&
-    process.env.POLYGON_CONTRACT &&
-    process.env.BASE_SEPOLIA_CONTRACT
-  ) {
+  if (process.env.COLLECTION_NAME && process.env.POLYGON_CONTRACT && process.env.BASE_CONTRACT) {
     const config: CollectionConfig = {
       name: process.env.COLLECTION_NAME,
       apiKey: process.env.ALCHEMY_API_KEY || '',
@@ -30,12 +26,12 @@ export function getCollectionConfig(): CollectionConfig {
           blockNumber: process.env.POLYGON_BLOCK || undefined,
         },
         {
-          name: 'BaseSepolia',
-          contractAddress: process.env.BASE_SEPOLIA_CONTRACT,
+          name: 'Base',
+          contractAddress: process.env.BASE_CONTRACT,
           maxRequests: 100,
           requestDelay: 100,
           enabled: true,
-          blockNumber: process.env.BASE_SEPOLIA_BLOCK || undefined,
+          blockNumber: process.env.BASE_BLOCK || undefined,
         },
       ],
     };
@@ -64,8 +60,8 @@ export function getCollectionConfig(): CollectionConfig {
         blockNumber: '72386800',
       },
       {
-        name: 'BaseSepolia',
-        contractAddress: baseSepoliaAddresses.installationsDiamond,
+        name: 'Base',
+        contractAddress: baseAddresses.installationsDiamond,
         maxRequests: 100,
         requestDelay: 100,
         enabled: true,

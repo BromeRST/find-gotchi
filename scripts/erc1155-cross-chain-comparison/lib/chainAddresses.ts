@@ -10,9 +10,9 @@ export const baseSepoliaAddresses = {
   kekContract: '0x03f2D8689177d2ebc9686C01065818c02C053f6a',
   gltrContract: '0x8C3A62b925663Aa442e5dc7766E596F1093CFdcF',
 
-  realmDiamond: '0xD30400839aCbFfE2847095BC3Be7c510CE812300',
-  installationsDiamond: '0xc004E055Fe865E857684D3C133E3420FD7622E37', // new (testing)
-  tilesDiamond: '0xD75808C958a7e6Cc930bDdF1d83F80C6B87c5189',
+  realmDiamond: '0x331f97b45Cd0AA642Ce57ABFb93d26D32D0E8115',
+  installationsDiamond: '0x112E410957977C46C1E9206FcE92CC88Ef2D3A73',
+  tilesDiamond: '0x51972061e0c77dEb8244314c8a96a4C30164fE16',
 
   fakeGotchisNFT: '0x90C1c5EfbCBb288f961E46D1A9FcbfC762a765Ff',
   fakeCardsDiamond: '0xa3Ac88A7eE4C38F71bd8C06158Edf7b42C4909bA',
@@ -61,4 +61,26 @@ export const polygonAddresses = {
   ghstWmaticLP: '0xf69e93771F11AECd8E554aA165C3Fe7fd811530c',
   wamGHST: '0x73958d46B7aA2bc94926d8a215Fa560A5CdCA3eA',
   agcDiamond: '',
+};
+
+export const baseAddresses = {
+  ghst: '0xcD2F22236DD9Dfe2356D7C543161D4d260FD9BcB',
+  usdcAddress: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', //USDC token on Base
+
+  fudContract: '0x4595Ea2d4d76e067D6701552b8A66743f048A38b',
+  fomoContract: '0xB501045c286E2e499D761106Da367B7b9D72De9e',
+  alphaContract: '0x73e49fa294e6198400cA693a856816E23D0968Ee',
+  kekContract: '0x59c98408F27517937D2065d61862eBF129B07FD9',
+
+  daoFoundationLiquidity: '0x62DE034b1A69eF853c9d0D8a33D26DF5cF26682E',
+  agcDiamond: '',
+  aavegotchiDiamond: '0xA99c4B08201F2913Db8D28e71d020c4298F29dBF',
+  wearableDiamond: '0x052e6c114a166B0e91C2340370d72D4C33752B4b',
+  forgeDiamond: '0x50aF2d63b839aA32b4166FD1Cb247129b715186C',
+  realmDiamond: '',
+  installationsDiamond: '',
+  tilesDiamond: '',
+  fakeGotchisNFT: '0xAb59CA4A16925b0a4BaC5026C94bEB20A29Df479',
+  fakeCardsDiamond: '0xe46B8902dAD841476d9Fee081F1d62aE317206A9',
+  guardianSkinsDiamond: '',
 };

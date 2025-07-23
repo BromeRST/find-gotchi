@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import chalk from 'chalk';
-import { baseSepoliaAddresses, polygonAddresses } from './lib/chainAddresses';
+import { baseAddresses, polygonAddresses } from './lib/chainAddresses';
 import dotenv from 'dotenv';
 
 // Load environment variables from .env file
@@ -10,10 +10,10 @@ dotenv.config();
 // Define all ERC1155 collections to compare
 interface CollectionDefinition {
   name: string;
-  baseSepoliaAddress: string;
+  baseAddress: string;
   polygonAddress: string;
   blockNumber?: {
-    baseSepolia?: string;
+    base?: string;
     polygon?: string;
   };
 }
@@ -21,40 +21,40 @@ interface CollectionDefinition {
 const COLLECTIONS: CollectionDefinition[] = [
   // {
   //   name: 'Installations',
-  //   baseSepoliaAddress: baseSepoliaAddresses.installationsDiamond,
+  //   baseAddress: baseAddresses.installationsDiamond,
   //   polygonAddress: polygonAddresses.installationsDiamond,
   //   blockNumber: {
-  //     polygon: '73121283', // You can set specific block numbers for each collection
-  //     // baseSepolia: '12345678', // Uncomment and set if needed
+  //     polygon: '74262598', // You can set specific block numbers for each collection
+  //     // base: '12345678', // Uncomment and set if needed
   //   },
   // },
   // {
   //   name: 'Tiles',
-  //   baseSepoliaAddress: baseSepoliaAddresses.tilesDiamond,
+  //   baseAddress: baseAddresses.tilesDiamond,
   //   polygonAddress: polygonAddresses.tilesDiamond,
   //   blockNumber: {
-  //     polygon: '73121283', // You can set specific block numbers for each collection
-  //     // baseSepolia: '12345678', // Uncomment and set if needed
+  //     polygon: '74262598', // You can set specific block numbers for each collection
+  //     // base: '12345678', // Uncomment and set if needed
   //   },
   // },
   {
     name: 'FakeCards',
-    baseSepoliaAddress: baseSepoliaAddresses.fakeCardsDiamond,
+    baseAddress: baseAddresses.fakeCardsDiamond,
     polygonAddress: polygonAddresses.fakeCardsDiamond,
     blockNumber: {
-      polygon: '73121283', // You can set specific block numbers for each collection
-      // baseSepolia: '12345678', // Uncomment and set if needed
+      polygon: '74262598', // You can set specific block numbers for each collection
+      // base: '12345678', // Uncomment and set if needed
     },
   },
-  // {
-  //   name: 'Forge',
-  //   baseSepoliaAddress: baseSepoliaAddresses.forgeDiamond,
-  //   polygonAddress: polygonAddresses.forgeDiamond,
-  //   blockNumber: {
-  //     polygon: '73121283', // You can set specific block numbers for each collection
-  //     // baseSepolia: '12345678', // Uncomment and set if needed
-  //   },
-  // },
+  {
+    name: 'Forge',
+    baseAddress: baseAddresses.forgeDiamond,
+    polygonAddress: polygonAddresses.forgeDiamond,
+    blockNumber: {
+      polygon: '74262598', // You can set specific block numbers for each collection
+      // base: '12345678', // Uncomment and set if needed
+    },
+  },
 ];
 
 // Function to run comparison for a single collection
@@ -62,15 +62,15 @@ function runCollectionComparison(collection: CollectionDefinition): Promise<void
   return new Promise((resolve, reject) => {
     console.log(chalk.cyan.bold(`\n🚀 Starting comparison for ${collection.name}...`));
     console.log(chalk.gray(`📍 Polygon: ${collection.polygonAddress}`));
-    console.log(chalk.gray(`📍 BaseSepolia: ${collection.baseSepoliaAddress}`));
+    console.log(chalk.gray(`📍 Base: ${collection.baseAddress}`));
 
     if (collection.blockNumber) {
       console.log(chalk.gray('🔢 Block numbers:'));
       if (collection.blockNumber.polygon) {
         console.log(chalk.gray(`   Polygon: ${collection.blockNumber.polygon}`));
       }
-      if (collection.blockNumber.baseSepolia) {
-        console.log(chalk.gray(`   BaseSepolia: ${collection.blockNumber.baseSepolia}`));
+      if (collection.blockNumber.base) {
+        console.log(chalk.gray(`   Base: ${collection.blockNumber.base}`));
       }
     }
 
@@ -81,9 +81,9 @@ function runCollectionComparison(collection: CollectionDefinition): Promise<void
       ...process.env,
       COLLECTION_NAME: collection.name,
       POLYGON_CONTRACT: collection.polygonAddress,
-      BASE_SEPOLIA_CONTRACT: collection.baseSepoliaAddress,
+      BASE_CONTRACT: collection.baseAddress,
       POLYGON_BLOCK: collection.blockNumber?.polygon || '',
-      BASE_SEPOLIA_BLOCK: collection.blockNumber?.baseSepolia || '',
+      BASE_BLOCK: collection.blockNumber?.base || '',
     };
 
     // Run the comparison script with the collection-specific environment

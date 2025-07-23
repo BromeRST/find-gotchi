@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { Alchemy, Network } from 'alchemy-sdk';
 import { ChainConfig, CollectionConfig, Owner } from './types';
-import { baseSepoliaAddresses } from './chainAddresses';
+import { baseAddresses, baseSepoliaAddresses } from './chainAddresses';
 import { polygonAddresses } from './chainAddresses';
 import { ownerContractAddressesOnPolygon } from '../../lib';
 
@@ -20,16 +20,16 @@ const KNOWN_CONTRACT_ADDRESSES = new Set([
   polygonAddresses.maticBurnAddress.toLowerCase(),
 
   // Base Sepolia contract addresses
-  baseSepoliaAddresses.realmDiamond.toLowerCase(),
-  baseSepoliaAddresses.installationsDiamond.toLowerCase(),
-  baseSepoliaAddresses.tilesDiamond.toLowerCase(),
-  baseSepoliaAddresses.aavegotchiDiamond.toLowerCase(),
-  baseSepoliaAddresses.wearableDiamond.toLowerCase(),
-  baseSepoliaAddresses.forgeDiamond.toLowerCase(),
-  baseSepoliaAddresses.gbmDiamond.toLowerCase(),
-  baseSepoliaAddresses.fakeGotchisNFT.toLowerCase(),
-  baseSepoliaAddresses.fakeCardsDiamond.toLowerCase(),
-  baseSepoliaAddresses.guardianSkinsDiamond.toLowerCase(),
+  baseAddresses.realmDiamond.toLowerCase(),
+  baseAddresses.installationsDiamond.toLowerCase(),
+  baseAddresses.tilesDiamond.toLowerCase(),
+  baseAddresses.aavegotchiDiamond.toLowerCase(),
+  baseAddresses.wearableDiamond.toLowerCase(),
+  baseAddresses.forgeDiamond.toLowerCase(),
+  // baseAddresses.gbmDiamond.toLowerCase(),
+  baseAddresses.fakeGotchisNFT.toLowerCase(),
+  baseAddresses.fakeCardsDiamond.toLowerCase(),
+  baseAddresses.guardianSkinsDiamond.toLowerCase(),
 
   // Common addresses
   '0x000000000000000000000000000000000000dead', // burn address
@@ -48,8 +48,8 @@ function getAlchemyNetwork(chainName: string): Network {
   switch (chainName.toLowerCase()) {
     case 'polygon':
       return Network.MATIC_MAINNET;
-    case 'basesepolia':
-      return Network.BASE_SEPOLIA;
+    case 'base':
+      return Network.BASE_MAINNET;
     default:
       throw new Error(`Unsupported chain: ${chainName}`);
   }
