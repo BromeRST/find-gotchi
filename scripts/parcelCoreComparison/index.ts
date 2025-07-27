@@ -23,7 +23,7 @@ function getChainConfigs(): ChainConfig[] {
     },
     {
       name: 'Base Sepolia',
-      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-realm-6/api`,
+      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-realm-7/api`,
     },
   ];
 }

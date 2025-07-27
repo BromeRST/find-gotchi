@@ -6,7 +6,7 @@ import path from 'path';
 import { GraphQLClient } from 'graphql-request';
 import {
   polygonAddresses,
-  baseSepoliaAddresses,
+  baseAddresses,
 } from '../erc1155-cross-chain-comparison/lib/chainAddresses';
 import { EXCLUDED_ADDRESSES } from '../wearablesComparison/index';
 import { AAVEGOTCHI_ABI } from './abi';
@@ -24,10 +24,10 @@ dotenv.config();
 // Configuration
 const CONFIG = {
   POLYGON_RPC_URL: process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com',
-  BASE_SEPOLIA_RPC_URL: process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org',
+  BASE_RPC_URL: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
   POLYGON_CONTRACT_ADDRESS: polygonAddresses.aavegotchiDiamond,
-  BASE_SEPOLIA_CONTRACT_ADDRESS: baseSepoliaAddresses.aavegotchiDiamond,
-  POLYGON_BLOCK_NUMBER: 73121283, // Fixed block number for consistent historical comparison
+  BASE_CONTRACT_ADDRESS: baseAddresses.aavegotchiDiamond,
+  POLYGON_BLOCK_NUMBER: 74262598, // Fixed block number for consistent historical comparison
   POLYGON_SUBGRAPH_URL: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/api`,
   ETHEREUM_SUBGRAPH_URL: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-ethereum/api`,
 };
@@ -41,7 +41,7 @@ const BATCH_DELAY = 2000; // 2 seconds between batches
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY = 1000;
 
-// Vault configuration (Polygon only - vault contract doesn't exist on Base Sepolia)
+// Vault configuration (Polygon only - vault contract doesn't exist on Base)
 const VAULT_ADDRESS = '0xdd564df884fd4e217c9ee6f65b4ba6e5641eac63';
 const VAULT_ABI = [
   {
@@ -74,8 +74,8 @@ function validateEnvironment(): void {
   if (!CONFIG.POLYGON_RPC_URL) {
     throw new Error('POLYGON_RPC_URL environment variable is required');
   }
-  if (!CONFIG.BASE_SEPOLIA_RPC_URL) {
-    throw new Error('BASE_SEPOLIA_RPC_URL environment variable is required');
+  if (!CONFIG.BASE_RPC_URL) {
+    throw new Error('BASE_RPC_URL environment variable is required');
   }
   if (!process.env.SUBGRAPH_KEY) {
     throw new Error('SUBGRAPH_KEY environment variable is required for Ethereum subgraph access');
@@ -592,16 +592,16 @@ function convertBridgedToInfo(bridged: AavegotchiBridged, tokenId: string): Aave
 function compareAavegotchiData(
   tokenId: string,
   polygonData: AavegotchiInfo | null,
-  baseSepoliaData: AavegotchiInfo | null
+  baseData: AavegotchiInfo | null
 ): ComparisonResult {
   const discrepancies: AavegotchiDiscrepancy[] = [];
 
-  if (!polygonData && !baseSepoliaData) {
+  if (!polygonData && !baseData) {
     return {
       timestamp: new Date().toISOString(),
       tokenId,
       polygonData: null,
-      baseSepoliaData: null,
+      baseData: null,
       isIdentical: false,
       discrepancies: [],
       error: 'Data not found on either chain',
@@ -613,32 +613,32 @@ function compareAavegotchiData(
       timestamp: new Date().toISOString(),
       tokenId,
       polygonData: null,
-      baseSepoliaData,
+      baseData: baseData,
       isIdentical: false,
       discrepancies: [
         {
           field: 'existence',
           polygonValue: null,
-          baseSepoliaValue: 'exists',
+          baseValue: 'exists',
           discrepancyType: 'missing_polygon',
         },
       ],
     };
   }
 
-  if (!baseSepoliaData) {
+  if (!baseData) {
     return {
       timestamp: new Date().toISOString(),
       tokenId,
       polygonData,
-      baseSepoliaData: null,
+      baseData: null,
       isIdentical: false,
       discrepancies: [
         {
           field: 'existence',
           polygonValue: 'exists',
-          baseSepoliaValue: null,
-          discrepancyType: 'missing_base_sepolia',
+          baseValue: null,
+          discrepancyType: 'missing_base',
         },
       ],
     };
@@ -652,8 +652,6 @@ function compareAavegotchiData(
     'status',
     'collateral',
     'minimumStake',
-    'kinship',
-    'lastInteracted',
     'experience',
     'toNextLevel',
     'usedSkillPoints',
@@ -665,14 +663,14 @@ function compareAavegotchiData(
 
   for (const field of fieldsToCompare) {
     const polygonValue = polygonData[field as keyof AavegotchiInfo];
-    const baseSepoliaValue = baseSepoliaData[field as keyof AavegotchiInfo];
+    const baseValue = baseData[field as keyof AavegotchiInfo];
 
-    if (typeof polygonValue === 'bigint' && typeof baseSepoliaValue === 'bigint') {
-      if (polygonValue !== baseSepoliaValue) {
+    if (typeof polygonValue === 'bigint' && typeof baseValue === 'bigint') {
+      if (polygonValue !== baseValue) {
         discrepancies.push({
           field,
           polygonValue: polygonValue.toString(),
-          baseSepoliaValue: baseSepoliaValue.toString(),
+          baseValue: baseValue.toString(),
           discrepancyType: 'value_mismatch',
         });
       }
@@ -682,22 +680,22 @@ function compareAavegotchiData(
       if (addressFields.includes(field)) {
         const normalizedPolygonValue =
           typeof polygonValue === 'string' ? polygonValue.toLowerCase() : polygonValue;
-        const normalizedBaseSepoliaValue =
-          typeof baseSepoliaValue === 'string' ? baseSepoliaValue.toLowerCase() : baseSepoliaValue;
+        const normalizedBaseValue =
+          typeof baseValue === 'string' ? baseValue.toLowerCase() : baseValue;
 
-        if (normalizedPolygonValue !== normalizedBaseSepoliaValue) {
+        if (normalizedPolygonValue !== normalizedBaseValue) {
           discrepancies.push({
             field,
             polygonValue,
-            baseSepoliaValue,
+            baseValue: baseValue,
             discrepancyType: 'value_mismatch',
           });
         }
-      } else if (polygonValue !== baseSepoliaValue) {
+      } else if (polygonValue !== baseValue) {
         discrepancies.push({
           field,
           polygonValue,
-          baseSepoliaValue,
+          baseValue: baseValue,
           discrepancyType: 'value_mismatch',
         });
       }
@@ -709,22 +707,22 @@ function compareAavegotchiData(
 
   for (const field of arrayFieldsToCompare) {
     const polygonArray = polygonData[field as keyof AavegotchiInfo] as bigint[];
-    const baseSepoliaArray = baseSepoliaData[field as keyof AavegotchiInfo] as bigint[];
+    const baseArray = baseData[field as keyof AavegotchiInfo] as bigint[];
 
-    if (polygonArray.length !== baseSepoliaArray.length) {
+    if (polygonArray.length !== baseArray.length) {
       discrepancies.push({
         field: `${field}_length`,
         polygonValue: polygonArray.length,
-        baseSepoliaValue: baseSepoliaArray.length,
+        baseValue: baseArray.length,
         discrepancyType: 'value_mismatch',
       });
     } else {
       for (let i = 0; i < polygonArray.length; i++) {
-        if (polygonArray[i] !== baseSepoliaArray[i]) {
+        if (polygonArray[i] !== baseArray[i]) {
           discrepancies.push({
             field: `${field}[${i}]`,
             polygonValue: polygonArray[i].toString(),
-            baseSepoliaValue: baseSepoliaArray[i].toString(),
+            baseValue: baseArray[i].toString(),
             discrepancyType: 'value_mismatch',
           });
         }
@@ -734,13 +732,13 @@ function compareAavegotchiData(
 
   // Compare items array (basic comparison - can be expanded)
   const polygonItemsLength = polygonData.items?.length || 0;
-  const baseSepoliaItemsLength = baseSepoliaData.items?.length || 0;
+  const baseItemsLength = baseData.items?.length || 0;
 
-  if (polygonItemsLength !== baseSepoliaItemsLength) {
+  if (polygonItemsLength !== baseItemsLength) {
     discrepancies.push({
       field: 'items_length',
       polygonValue: polygonItemsLength,
-      baseSepoliaValue: baseSepoliaItemsLength,
+      baseValue: baseItemsLength,
       discrepancyType: 'value_mismatch',
     });
   }
@@ -779,7 +777,7 @@ function compareAavegotchiData(
     timestamp: new Date().toISOString(),
     tokenId,
     polygonData,
-    baseSepoliaData,
+    baseData: baseData,
     isIdentical: filteredDiscrepancies.length === 0,
     discrepancies: filteredDiscrepancies,
   };
@@ -829,12 +827,12 @@ async function saveResults(result: ComparisonResult): Promise<void> {
       Error: result.error || null,
     },
     'Polygon Data': formatAavegotchiData(result.polygonData),
-    'Base Sepolia Data': formatAavegotchiData(result.baseSepoliaData),
+    'Base Data': formatAavegotchiData(result.baseData),
     Discrepancies: result.discrepancies.map((discrepancy, index) => ({
       [`${index + 1}. Field`]: discrepancy.field,
       Type: discrepancy.discrepancyType,
       'Polygon Value': discrepancy.polygonValue,
-      'Base Sepolia Value': discrepancy.baseSepoliaValue,
+      'Base Value': discrepancy.baseValue,
     })),
   };
 
@@ -861,7 +859,7 @@ function printResults(result: ComparisonResult): void {
       console.log(chalk.yellow(`\n${index + 1}. Field: ${discrepancy.field}`));
       console.log(chalk.gray(`   Type: ${discrepancy.discrepancyType}`));
       console.log(chalk.red(`   Polygon: ${JSON.stringify(discrepancy.polygonValue)}`));
-      console.log(chalk.cyan(`   Base Sepolia: ${JSON.stringify(discrepancy.baseSepoliaValue)}`));
+      console.log(chalk.cyan(`   Base: ${JSON.stringify(discrepancy.baseValue)}`));
     });
   }
 
@@ -875,19 +873,19 @@ function printResults(result: ComparisonResult): void {
     console.log(chalk.gray(`   Base Rarity Score: ${result.polygonData.baseRarityScore}`));
   }
 
-  if (result.baseSepoliaData) {
-    console.log(chalk.blue(`\n📊 Base Sepolia Data:`));
-    console.log(chalk.gray(`   Name: ${result.baseSepoliaData.name}`));
-    console.log(chalk.gray(`   Owner: ${result.baseSepoliaData.owner}`));
-    console.log(chalk.gray(`   Level: ${result.baseSepoliaData.level}`));
-    console.log(chalk.gray(`   Kinship: ${result.baseSepoliaData.kinship}`));
-    console.log(chalk.gray(`   Base Rarity Score: ${result.baseSepoliaData.baseRarityScore}`));
+  if (result.baseData) {
+    console.log(chalk.blue(`\n📊 Base Data:`));
+    console.log(chalk.gray(`   Name: ${result.baseData.name}`));
+    console.log(chalk.gray(`   Owner: ${result.baseData.owner}`));
+    console.log(chalk.gray(`   Level: ${result.baseData.level}`));
+    console.log(chalk.gray(`   Kinship: ${result.baseData.kinship}`));
+    console.log(chalk.gray(`   Base Rarity Score: ${result.baseData.baseRarityScore}`));
   }
 }
 
 async function processBatch(
   polygonContract: ethers.Contract,
-  baseSepoliaContract: ethers.Contract,
+  baseContract: ethers.Contract,
   tokenIds: string[],
   batchNumber: number
 ): Promise<BatchResult> {
@@ -902,7 +900,7 @@ async function processBatch(
   let different = 0;
   let errors = 0;
   let missingPolygon = 0;
-  let missingBaseSepolia = 0;
+  let missingBase = 0;
 
   try {
     // Fetch all tokens in this batch from both chains using batch calls
@@ -925,24 +923,22 @@ async function processBatch(
       );
     }
 
-    console.log(
-      chalk.gray(`📥 Fetching Base Sepolia data (batch call for ${tokenIds.length} tokens)...`)
-    );
-    let baseSepoliaBatchData: AavegotchiBridged[] | null = null;
+    console.log(chalk.gray(`📥 Fetching Base data (batch call for ${tokenIds.length} tokens)...`));
+    let baseBatchData: AavegotchiBridged[] | null = null;
     try {
-      baseSepoliaBatchData = await getBatchAavegotchiData(baseSepoliaContract, tokenIds);
-      console.log(chalk.green(`✓ Base Sepolia batch data fetched successfully`));
+      baseBatchData = await getBatchAavegotchiData(baseContract, tokenIds);
+      console.log(chalk.green(`✓ Base batch data fetched successfully`));
     } catch (err) {
       console.log(
         chalk.yellow(
-          `⚠️  Failed to fetch batch from Base Sepolia: ${err instanceof Error ? err.message : 'Unknown error'}`
+          `⚠️  Failed to fetch batch from Base: ${err instanceof Error ? err.message : 'Unknown error'}`
         )
       );
     }
 
     // Convert batch data to AavegotchiInfo format
     let polygonDataArray: (AavegotchiInfo | null)[] = [];
-    let baseSepoliaDataArray: (AavegotchiInfo | null)[] = [];
+    let baseDataArray: (AavegotchiInfo | null)[] = [];
 
     for (let i = 0; i < tokenIds.length; i++) {
       const tokenId = tokenIds[i];
@@ -953,10 +949,10 @@ async function processBatch(
         polygonDataArray.push(null);
       }
 
-      if (baseSepoliaBatchData && baseSepoliaBatchData[i]) {
-        baseSepoliaDataArray.push(convertBridgedToInfo(baseSepoliaBatchData[i], tokenId));
+      if (baseBatchData && baseBatchData[i]) {
+        baseDataArray.push(convertBridgedToInfo(baseBatchData[i], tokenId));
       } else {
-        baseSepoliaDataArray.push(null);
+        baseDataArray.push(null);
       }
     }
 
@@ -1013,14 +1009,14 @@ async function processBatch(
 
       try {
         const polygonData = polygonDataArray[i];
-        const baseSepoliaData = baseSepoliaDataArray[i];
+        const baseData = baseDataArray[i];
         let error: string | undefined;
 
-        if (!polygonData && !baseSepoliaData) {
+        if (!polygonData && !baseData) {
           error = 'Failed to fetch data from both chains';
         }
 
-        const result = compareAavegotchiData(tokenId, polygonData, baseSepoliaData);
+        const result = compareAavegotchiData(tokenId, polygonData, baseData);
         if (error) {
           result.error = error;
         }
@@ -1036,10 +1032,10 @@ async function processBatch(
           different++;
 
           // Check for missing data
-          if (!result.polygonData && result.baseSepoliaData) {
+          if (!result.polygonData && result.baseData) {
             missingPolygon++;
-          } else if (result.polygonData && !result.baseSepoliaData) {
-            missingBaseSepolia++;
+          } else if (result.polygonData && !result.baseData) {
+            missingBase++;
           }
         }
 
@@ -1058,7 +1054,7 @@ async function processBatch(
           timestamp: new Date().toISOString(),
           tokenId,
           polygonData: null,
-          baseSepoliaData: null,
+          baseData: null,
           isIdentical: false,
           discrepancies: [],
           error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -1074,7 +1070,7 @@ async function processBatch(
         timestamp: new Date().toISOString(),
         tokenId,
         polygonData: null,
-        baseSepoliaData: null,
+        baseData: null,
         isIdentical: false,
         discrepancies: [],
         error: `Batch processing error: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -1095,7 +1091,7 @@ async function processBatch(
       different,
       errors,
       missingPolygon,
-      missingBaseSepolia,
+      missingBase,
     },
   };
 
@@ -1126,7 +1122,7 @@ async function saveFinalSummary(summary: FinalSummary): Promise<void> {
         Different: summary.overallSummary.different,
         Errors: summary.overallSummary.errors,
         'Missing on Polygon': summary.overallSummary.missingPolygon,
-        'Missing on Base Sepolia': summary.overallSummary.missingBaseSepolia,
+        'Missing on Base': summary.overallSummary.missingBase,
         'Filtered Owner Discrepancies (Excluded Addresses)': summary.filteredOwnerDiscrepancies,
       },
       'Field Discrepancies': summary.fieldDiscrepancies,
@@ -1142,7 +1138,7 @@ async function saveFinalSummary(summary: FinalSummary): Promise<void> {
           [`${index + 1}. Field`]: discrepancy.field,
           Type: discrepancy.discrepancyType,
           'Polygon Value': discrepancy.polygonValue,
-          'Base Sepolia Value': discrepancy.baseSepoliaValue,
+          'Base Value': discrepancy.baseValue,
         })),
       })),
   };
@@ -1165,7 +1161,7 @@ async function compareAllOnChainGotchis(): Promise<FinalSummary> {
 
   // Create providers
   const polygonProvider = new ethers.JsonRpcProvider(CONFIG.POLYGON_RPC_URL);
-  const baseSepoliaProvider = new ethers.JsonRpcProvider(CONFIG.BASE_SEPOLIA_RPC_URL);
+  const baseProvider = new ethers.JsonRpcProvider(CONFIG.BASE_RPC_URL);
 
   // Create contracts
   const polygonContract = new ethers.Contract(
@@ -1174,10 +1170,10 @@ async function compareAllOnChainGotchis(): Promise<FinalSummary> {
     polygonProvider
   );
 
-  const baseSepoliaContract = new ethers.Contract(
-    CONFIG.BASE_SEPOLIA_CONTRACT_ADDRESS,
+  const baseContract = new ethers.Contract(
+    CONFIG.BASE_CONTRACT_ADDRESS,
     AAVEGOTCHI_ABI,
-    baseSepoliaProvider
+    baseProvider
   );
 
   const allResults: ComparisonResult[] = [];
@@ -1187,7 +1183,7 @@ async function compareAllOnChainGotchis(): Promise<FinalSummary> {
     different: 0,
     errors: 0,
     missingPolygon: 0,
-    missingBaseSepolia: 0,
+    missingBase: 0,
   };
 
   // Generate all token IDs and split into batches (starting from 1, not 0)
@@ -1204,12 +1200,7 @@ async function compareAllOnChainGotchis(): Promise<FinalSummary> {
     }
 
     try {
-      const batchResult = await processBatch(
-        polygonContract,
-        baseSepoliaContract,
-        tokenIds,
-        batchNum
-      );
+      const batchResult = await processBatch(polygonContract, baseContract, tokenIds, batchNum);
 
       // Add all results to the main array
       allResults.push(...batchResult.results);
@@ -1227,7 +1218,7 @@ async function compareAllOnChainGotchis(): Promise<FinalSummary> {
       overallSummary.different += batchResult.summary.different;
       overallSummary.errors += batchResult.summary.errors;
       overallSummary.missingPolygon += batchResult.summary.missingPolygon;
-      overallSummary.missingBaseSepolia += batchResult.summary.missingBaseSepolia;
+      overallSummary.missingBase += batchResult.summary.missingBase;
 
       // Progress update
       console.log(
@@ -1299,7 +1290,7 @@ async function compareOnChainGotchi(tokenId: string): Promise<ComparisonResult> 
 
   // Create providers
   const polygonProvider = new ethers.JsonRpcProvider(CONFIG.POLYGON_RPC_URL);
-  const baseSepoliaProvider = new ethers.JsonRpcProvider(CONFIG.BASE_SEPOLIA_RPC_URL);
+  const baseProvider = new ethers.JsonRpcProvider(CONFIG.BASE_RPC_URL);
 
   // Create contracts
   const polygonContract = new ethers.Contract(
@@ -1308,14 +1299,14 @@ async function compareOnChainGotchi(tokenId: string): Promise<ComparisonResult> 
     polygonProvider
   );
 
-  const baseSepoliaContract = new ethers.Contract(
-    CONFIG.BASE_SEPOLIA_CONTRACT_ADDRESS,
+  const baseContract = new ethers.Contract(
+    CONFIG.BASE_CONTRACT_ADDRESS,
     AAVEGOTCHI_ABI,
-    baseSepoliaProvider
+    baseProvider
   );
 
   let polygonData: AavegotchiInfo | null = null;
-  let baseSepoliaData: AavegotchiInfo | null = null;
+  let baseData: AavegotchiInfo | null = null;
   let error: string | undefined;
 
   try {
@@ -1333,14 +1324,14 @@ async function compareOnChainGotchi(tokenId: string): Promise<ComparisonResult> 
       );
     }
 
-    console.log(chalk.gray('📡 Fetching data from Base Sepolia (current state)...'));
+    console.log(chalk.gray('📡 Fetching data from Base (current state)...'));
     try {
-      baseSepoliaData = await getAavegotchiData(baseSepoliaContract, tokenId);
-      console.log(chalk.green('✓ Base Sepolia data fetched successfully'));
+      baseData = await getAavegotchiData(baseContract, tokenId);
+      console.log(chalk.green('✓ Base data fetched successfully'));
     } catch (err) {
       console.log(
         chalk.yellow(
-          `⚠️  Failed to fetch from Base Sepolia: ${err instanceof Error ? err.message : 'Unknown error'}`
+          `⚠️  Failed to fetch from Base: ${err instanceof Error ? err.message : 'Unknown error'}`
         )
       );
     }
@@ -1383,14 +1374,14 @@ async function compareOnChainGotchi(tokenId: string): Promise<ComparisonResult> 
       polygonData = polygonDataArray[0];
     }
 
-    if (!polygonData && !baseSepoliaData) {
+    if (!polygonData && !baseData) {
       error = 'Failed to fetch data from both chains';
     }
   } catch (err) {
     error = `Unexpected error: ${err instanceof Error ? err.message : 'Unknown error'}`;
   }
 
-  const result = compareAavegotchiData(tokenId, polygonData, baseSepoliaData);
+  const result = compareAavegotchiData(tokenId, polygonData, baseData);
   if (error) {
     result.error = error;
   }
@@ -1409,9 +1400,9 @@ async function main(): Promise<void> {
 
     console.log(chalk.blue('🔧 Configuration:'));
     console.log(chalk.gray(`   Polygon RPC: ${CONFIG.POLYGON_RPC_URL}`));
-    console.log(chalk.gray(`   Base Sepolia RPC: ${CONFIG.BASE_SEPOLIA_RPC_URL}`));
+    console.log(chalk.gray(`   Base RPC: ${CONFIG.BASE_RPC_URL}`));
     console.log(chalk.gray(`   Polygon Contract: ${CONFIG.POLYGON_CONTRACT_ADDRESS}`));
-    console.log(chalk.gray(`   Base Sepolia Contract: ${CONFIG.BASE_SEPOLIA_CONTRACT_ADDRESS}`));
+    console.log(chalk.gray(`   Base Contract: ${CONFIG.BASE_CONTRACT_ADDRESS}`));
     console.log(chalk.gray(`   Polygon Block Number: ${CONFIG.POLYGON_BLOCK_NUMBER}`));
     console.log(
       chalk.gray(
@@ -1477,11 +1468,7 @@ async function main(): Promise<void> {
       console.log(
         chalk.gray(`   • Missing on Polygon: ${finalSummary.overallSummary.missingPolygon}`)
       );
-      console.log(
-        chalk.gray(
-          `   • Missing on Base Sepolia: ${finalSummary.overallSummary.missingBaseSepolia}`
-        )
-      );
+      console.log(chalk.gray(`   • Missing on Base: ${finalSummary.overallSummary.missingBase}`));
       if (finalSummary.filteredOwnerDiscrepancies > 0) {
         console.log(
           chalk.gray(

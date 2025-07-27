@@ -52,15 +52,15 @@ export interface AavegotchiBridged {
 export interface AavegotchiDiscrepancy {
   field: string;
   polygonValue: any;
-  baseSepoliaValue: any;
-  discrepancyType: 'value_mismatch' | 'missing_polygon' | 'missing_base_sepolia';
+  baseValue: any;
+  discrepancyType: 'value_mismatch' | 'missing_polygon' | 'missing_base';
 }
 
 export interface ComparisonResult {
   timestamp: string;
   tokenId: string;
   polygonData: AavegotchiInfo | null;
-  baseSepoliaData: AavegotchiInfo | null;
+  baseData: AavegotchiInfo | null;
   isIdentical: boolean;
   discrepancies: AavegotchiDiscrepancy[];
   error?: string;
@@ -78,7 +78,7 @@ export interface BatchResult {
     different: number;
     errors: number;
     missingPolygon: number;
-    missingBaseSepolia: number;
+    missingBase: number;
   };
 }
 
@@ -91,7 +91,7 @@ export interface FinalSummary {
     different: number;
     errors: number;
     missingPolygon: number;
-    missingBaseSepolia: number;
+    missingBase: number;
   };
   processingTime: string;
   polygonBlockNumber: number;
@@ -108,7 +108,7 @@ export interface FinalSummary {
       different: number;
       errors: number;
       missingPolygon: number;
-      missingBaseSepolia: number;
+      missingBase: number;
     };
   }[];
 }

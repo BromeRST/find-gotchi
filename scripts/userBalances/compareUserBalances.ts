@@ -33,7 +33,7 @@ const config = {
 };
 
 // Select which query to run
-const queryToUse = gotchiQuery;
+const queryToUse = portalQuery;
 
 async function main() {
   logInfo('Starting user balance comparison...');

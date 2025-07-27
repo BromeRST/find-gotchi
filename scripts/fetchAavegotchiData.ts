@@ -49,6 +49,7 @@ async function fetchAavegotchiData(tokenId: string) {
       kinship: result.kinship.toString(),
       lastInteracted: new Date(Number(result.lastInteracted) * 1000).toISOString(),
       experience: result.experience.toString(),
+      items: result.items.map((item: any) => item.toString()),
     });
   } catch (error: any) {
     console.error(chalk.red(`❌ Error fetching Aavegotchi data:`), error.message);

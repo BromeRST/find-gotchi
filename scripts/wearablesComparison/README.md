@@ -11,7 +11,7 @@ The script performs the following operations:
 3. **Fetches Subgraph Data**: For each item, retrieves all owners and their balances from the respective chain subgraph
 4. **Verifies Contract Balances**:
    - **Polygon**: Calls the `aavegotchiDiamond` contract to verify balances
-   - **Base Sepolia**: Calls the `wearableDiamond` contract to verify balances
+   - **Base**: Calls the `wearableDiamond` contract to verify balances
 5. **Tracks Equipped Wearables**:
    - Monitors which Aavegotchis have each wearable equipped
    - Identifies discrepancies in equipped wearables between chains
