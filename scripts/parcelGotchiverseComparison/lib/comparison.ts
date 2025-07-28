@@ -1,6 +1,10 @@
 import chalk from 'chalk';
+import { ethers } from 'ethers';
 import { VerseParcelInfo, ParcelDiscrepancy, ComparisonResult } from './types';
 import { ownerContractAddressesOnPolygon } from '../../lib';
+import { polygonAddresses } from '../../erc1155-cross-chain-comparison/lib/chainAddresses';
+import { installationsAbi } from '../../../lib/installationsAbi';
+import { tilesAbi } from '../../../lib/tilesAbi';
 
 function isPolygonContractAddress(ownerAddress: any): boolean {
   if (!ownerAddress || typeof ownerAddress !== 'string') {
@@ -48,6 +52,113 @@ function compareValues(value1: any, value2: any): boolean {
   const norm2 = normalizeValue(value2);
 
   return JSON.stringify(norm1) === JSON.stringify(norm2);
+}
+
+// Contract verification function for installations
+async function verifyInstallationsOnChain(
+  parcelId: string,
+  installationsOnlyInSubgraph2: any[]
+): Promise<string[]> {
+  try {
+    // Set up provider and contract
+    const provider = new ethers.JsonRpcProvider(
+      process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'
+    );
+    const installationContract = new ethers.Contract(
+      polygonAddresses.installationsDiamond,
+      installationsAbi,
+      provider
+    );
+
+    console.log(chalk.gray(`🔍 Verifying installations on-chain for parcel ${parcelId}...`));
+
+    // Call contract to get actual installations for this parcel
+    const contractResult = await installationContract.installationBalancesOfToken(
+      polygonAddresses.realmDiamond,
+      parcelId,
+      { blockTag: 73121283 } // Historical block number for consistency
+    );
+
+    // Extract installation IDs that exist on-chain
+    const onChainInstallationIds = new Set();
+    for (const item of contractResult) {
+      if (item.balance && item.balance.toString() !== '0') {
+        onChainInstallationIds.add(item.installationId.toString());
+      }
+    }
+
+    // Check which installations from subgraph2 actually exist on-chain
+    const verifiedInstallations: string[] = [];
+    for (const installation of installationsOnlyInSubgraph2) {
+      if (onChainInstallationIds.has(installation.id)) {
+        verifiedInstallations.push(installation.id);
+        console.log(
+          chalk.green(`✅ Installation ${installation.id} (${installation.name}) verified on-chain`)
+        );
+      } else {
+        console.log(
+          chalk.yellow(
+            `⚠️  Installation ${installation.id} (${installation.name}) not found on-chain`
+          )
+        );
+      }
+    }
+
+    return verifiedInstallations;
+  } catch (error) {
+    console.error(
+      chalk.red(`❌ Error verifying installations on-chain for parcel ${parcelId}:`),
+      error
+    );
+    return []; // Return empty array on error, treat as no verification
+  }
+}
+
+// Contract verification function for tiles
+async function verifyTilesOnChain(
+  parcelId: string,
+  tilesOnlyInSubgraph2: any[]
+): Promise<string[]> {
+  try {
+    // Set up provider and contract
+    const provider = new ethers.JsonRpcProvider(
+      process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'
+    );
+    const tileContract = new ethers.Contract(polygonAddresses.tilesDiamond, tilesAbi, provider);
+
+    console.log(chalk.gray(`🔍 Verifying tiles on-chain for parcel ${parcelId}...`));
+
+    // Call contract to get actual tiles for this parcel
+    const contractResult = await tileContract.tileBalancesOfToken(
+      polygonAddresses.realmDiamond,
+      parcelId,
+      { blockTag: 73121283 } // Historical block number for consistency
+    );
+
+    // Extract tile IDs that exist on-chain
+    const onChainTileIds = new Set();
+    for (const item of contractResult) {
+      if (item.balance && item.balance.toString() !== '0') {
+        onChainTileIds.add(item.tileId.toString());
+      }
+    }
+
+    // Check which tiles from subgraph2 actually exist on-chain
+    const verifiedTiles: string[] = [];
+    for (const tile of tilesOnlyInSubgraph2) {
+      if (onChainTileIds.has(tile.id)) {
+        verifiedTiles.push(tile.id);
+        console.log(chalk.green(`✅ Tile ${tile.id} (${tile.tileType}) verified on-chain`));
+      } else {
+        console.log(chalk.yellow(`⚠️  Tile ${tile.id} (${tile.tileType}) not found on-chain`));
+      }
+    }
+
+    return verifiedTiles;
+  } catch (error) {
+    console.error(chalk.red(`❌ Error verifying tiles on-chain for parcel ${parcelId}:`), error);
+    return []; // Return empty array on error, treat as no verification
+  }
 }
 
 function createArrayDiff(
@@ -115,11 +226,136 @@ function createArrayDiff(
   };
 }
 
-function compareParcelMetadata(
+// Async version of createArrayDiff with contract verification for installations
+async function createArrayDiffWithVerification(
+  array1: any[],
+  array2: any[],
+  fieldName: string,
+  parcelId: string
+): Promise<{ subgraph1Value: any; subgraph2Value: any }> {
+  const norm1 = normalizeValue(array1);
+  const norm2 = normalizeValue(array2);
+
+  // For arrays of objects with id field, show differences including modified items
+  if (array1.length > 0 && typeof array1[0] === 'object' && array1[0].id !== undefined) {
+    const ids1 = new Set(norm1.map((item: any) => item.id));
+    const ids2 = new Set(norm2.map((item: any) => item.id));
+
+    // Items only in subgraph1
+    const onlyInSubgraph1 = norm1.filter((item: any) => !ids2.has(item.id));
+
+    // Items only in subgraph2
+    let onlyInSubgraph2 = norm2.filter((item: any) => !ids1.has(item.id));
+
+    // Special handling for installations and tiles: verify against contract
+    if (fieldName === 'equippedInstallations' && onlyInSubgraph2.length > 0) {
+      console.log(
+        chalk.yellow(
+          `⚠️  Found ${onlyInSubgraph2.length} installations only in subgraph2 for parcel ${parcelId}`
+        )
+      );
+
+      // Verify installations against contract
+      const verifiedInstallationIds = await verifyInstallationsOnChain(parcelId, onlyInSubgraph2);
+
+      if (verifiedInstallationIds.length > 0) {
+        console.log(
+          chalk.green(
+            `✅ ${verifiedInstallationIds.length} installations verified on-chain, filtering out from discrepancy`
+          )
+        );
+
+        // Remove verified installations from onlyInSubgraph2
+        onlyInSubgraph2 = onlyInSubgraph2.filter(
+          (installation: { id: string; installationType: string; name: string; level: string }) =>
+            !verifiedInstallationIds.includes(installation.id)
+        );
+
+        if (onlyInSubgraph2.length === 0) {
+          console.log(
+            chalk.green(`🎉 All installations verified on-chain, no discrepancy to report`)
+          );
+        }
+      }
+    } else if (fieldName === 'equippedTiles' && onlyInSubgraph2.length > 0) {
+      console.log(
+        chalk.yellow(
+          `⚠️  Found ${onlyInSubgraph2.length} tiles only in subgraph2 for parcel ${parcelId}`
+        )
+      );
+
+      // Verify tiles against contract
+      const verifiedTileIds = await verifyTilesOnChain(parcelId, onlyInSubgraph2);
+
+      if (verifiedTileIds.length > 0) {
+        console.log(
+          chalk.green(
+            `✅ ${verifiedTileIds.length} tiles verified on-chain, filtering out from discrepancy`
+          )
+        );
+
+        // Remove verified tiles from onlyInSubgraph2
+        onlyInSubgraph2 = onlyInSubgraph2.filter(
+          (tile: { id: string; tileType: string }) => !verifiedTileIds.includes(tile.id)
+        );
+
+        if (onlyInSubgraph2.length === 0) {
+          console.log(chalk.green(`🎉 All tiles verified on-chain, no discrepancy to report`));
+        }
+      }
+    }
+
+    // Items with same ID but different properties
+    const modifiedInSubgraph1: any[] = [];
+    const modifiedInSubgraph2: any[] = [];
+
+    norm1.forEach((item1: any) => {
+      const item2 = norm2.find((item: any) => item.id === item1.id);
+      if (item2 && JSON.stringify(item1) !== JSON.stringify(item2)) {
+        modifiedInSubgraph1.push(item1);
+        modifiedInSubgraph2.push(item2);
+      }
+    });
+
+    return {
+      subgraph1Value: {
+        only_in_subgraph1: onlyInSubgraph1,
+        modified_in_subgraph1: modifiedInSubgraph1,
+        total_count: array1.length,
+      },
+      subgraph2Value: {
+        only_in_subgraph2: onlyInSubgraph2,
+        modified_in_subgraph2: modifiedInSubgraph2,
+        total_count: array2.length,
+      },
+    };
+  }
+
+  // For simple arrays, show the differences
+  const diff1 = norm1.filter(
+    (item: any) => !norm2.some((item2: any) => JSON.stringify(item) === JSON.stringify(item2))
+  );
+  const diff2 = norm2.filter(
+    (item: any) => !norm1.some((item1: any) => JSON.stringify(item) === JSON.stringify(item1))
+  );
+
+  return {
+    subgraph1Value: {
+      only_in_subgraph1: diff1,
+      total_count: array1.length,
+    },
+    subgraph2Value: {
+      only_in_subgraph2: diff2,
+      total_count: array2.length,
+    },
+  };
+}
+
+async function compareParcelMetadata(
   parcelId: string,
   subgraph1Parcel: VerseParcelInfo | undefined,
   subgraph2Parcel: VerseParcelInfo | undefined
-): ParcelDiscrepancy[] {
+): Promise<ParcelDiscrepancy[]> {
   const discrepancies: ParcelDiscrepancy[] = [];
 
   // Handle missing parcels
@@ -165,6 +401,7 @@ function compareParcelMetadata(
     'size',
     'tokenId',
     'remainingAlchemica',
+    // 'totalAlchemicaClaimed',
     'surveyRound',
     'equippedInstallations',
     'equippedTiles',
@@ -188,14 +425,30 @@ function compareParcelMetadata(
       // For array fields, create a diff instead of showing full arrays
       const arrayFields = ['equippedInstallations', 'equippedTiles', 'historicalPrices'];
       if (arrayFields.includes(field) && Array.isArray(value1) && Array.isArray(value2)) {
-        const diff = createArrayDiff(value1, value2, field);
-        discrepancies.push({
-          tokenId: parcelId,
-          field,
-          subgraph1Value: diff.subgraph1Value,
-          subgraph2Value: diff.subgraph2Value,
-          discrepancyType: 'value_mismatch',
-        });
+        let diff;
+
+        // Use async verification for installations and tiles
+        if (field === 'equippedInstallations' || field === 'equippedTiles') {
+          diff = await createArrayDiffWithVerification(value1, value2, field, parcelId);
+        } else {
+          diff = createArrayDiff(value1, value2, field);
+        }
+
+        // Only add discrepancy if there are actual differences after verification
+        if (
+          diff.subgraph1Value.only_in_subgraph1.length > 0 ||
+          diff.subgraph2Value.only_in_subgraph2.length > 0 ||
+          diff.subgraph1Value.modified_in_subgraph1?.length > 0 ||
+          diff.subgraph2Value.modified_in_subgraph2?.length > 0
+        ) {
+          discrepancies.push({
+            tokenId: parcelId,
+            field,
+            subgraph1Value: diff.subgraph1Value,
+            subgraph2Value: diff.subgraph2Value,
+            discrepancyType: 'value_mismatch',
+          });
+        }
       } else {
         discrepancies.push({
           tokenId: parcelId,
@@ -235,7 +488,11 @@ export async function compareMetadata(
     const subgraph1Parcel = subgraph1Data.get(parcelId);
     const subgraph2Parcel = subgraph2Data.get(parcelId);
 
-    const parcelDiscrepancies = compareParcelMetadata(parcelId, subgraph1Parcel, subgraph2Parcel);
+    const parcelDiscrepancies = await compareParcelMetadata(
+      parcelId,
+      subgraph1Parcel,
+      subgraph2Parcel
+    );
 
     if (parcelDiscrepancies.length > 0) {
       discrepanciesByToken[parcelId] = parcelDiscrepancies;

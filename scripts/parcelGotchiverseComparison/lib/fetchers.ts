@@ -23,6 +23,7 @@ export const PARCEL_QUERY = gql`
     size
     tokenId
     remainingAlchemica
+    totalAlchemicaClaimed
     surveyRound
     equippedInstallations {
       id

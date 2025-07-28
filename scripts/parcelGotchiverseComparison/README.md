@@ -19,17 +19,19 @@ The script fetches parcel data from two different gotchiverse subgraphs and perf
 
 - **Comprehensive Field Comparison**: Compares all fields from the VerseParcelInfo fragment
 - **Missing Entity Detection**: Identifies parcels that exist on one subgraph but not the other
+- **On-Chain Contract Verification**: For installations and tiles found only in subgraph2, verifies against the actual on-chain contracts to prevent false positives
 - **Pagination Support**: Efficiently handles large datasets using ID-based pagination
 - **Retry Logic**: Robust error handling with exponential backoff
 - **Detailed Reporting**: Generates comprehensive reports with statistics and examples
 - **JSON Output**: Saves detailed results to timestamped JSON files
-- **Complex Object Comparison**: Handles nested objects and arrays (installations, tiles, alchemica)
+- **Smart Array Comparison**: Handles nested objects and arrays (installations, tiles, alchemica) with contract verification for on-chain validation
 
 ## Prerequisites
 
 1. Node.js and npm/yarn installed
 2. Environment variables configured:
    - `SUBGRAPH_KEY`: Your Satsuma subgraph API key
+   - `POLYGON_RPC_URL`: Polygon RPC endpoint (optional, defaults to https://polygon-rpc.com)
 
 ## Environment Setup
 
@@ -37,7 +39,32 @@ Create a `.env` file in the project root with:
 
 ```env
 SUBGRAPH_KEY=your_subgraph_api_key_here
+POLYGON_RPC_URL=https://your-polygon-rpc-url  # Optional, for contract verification
 ```
+
+## Contract Verification
+
+When the script finds installations or tiles that exist only in subgraph2 (Base Sepolia), it performs on-chain contract verification to determine if these items actually exist on the Polygon network. This prevents false positives where subgraph2 has correct data but subgraph1 is missing it.
+
+### Installation Verification
+
+The verification process for installations:
+
+1. **Detection**: When installations are found only in subgraph2
+2. **Contract Query**: Calls `installationBalancesOfToken` on the Polygon installations contract at historical block 73121283
+3. **Verification**: Checks if the installation IDs exist on-chain with non-zero balances
+4. **Filtering**: Removes verified installations from the discrepancy report
+
+### Tile Verification
+
+The verification process for tiles:
+
+1. **Detection**: When tiles are found only in subgraph2
+2. **Contract Query**: Calls `tileBalancesOfToken` on the Polygon tiles contract at historical block 73121283
+3. **Verification**: Checks if the tile IDs exist on-chain with non-zero balances
+4. **Filtering**: Removes verified tiles from the discrepancy report
+
+This ensures that discrepancies only reflect actual data inconsistencies, not cases where subgraph2 has more complete data than subgraph1.
 
 ## Usage
 

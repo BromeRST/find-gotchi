@@ -12,6 +12,13 @@ function validateEnvironment(): void {
   if (!process.env.SUBGRAPH_KEY) {
     throw new Error('SUBGRAPH_KEY environment variable is required');
   }
+
+  // POLYGON_RPC_URL is optional, will use default if not provided
+  if (!process.env.POLYGON_RPC_URL) {
+    console.log(
+      chalk.yellow('⚠️  POLYGON_RPC_URL not set, using default: https://polygon-rpc.com')
+    );
+  }
 }
 
 function getChainConfigs(): ChainConfig[] {
@@ -23,7 +30,7 @@ function getChainConfigs(): ChainConfig[] {
     },
     {
       name: 'Base Sepolia Gotchiverse',
-      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/gotchiverse-baseSepolia/version/baseSepolia-test-contracts-16/api`,
+      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/gotchiverse-baseSepolia/version/baseSepolia-test-contracts-19/api`,
     },
   ];
 }

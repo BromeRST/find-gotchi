@@ -15,6 +15,9 @@ export interface VerseParcelInfo {
   remainingAlchemica: {
     [key: string]: string;
   };
+  totalAlchemicaClaimed: {
+    [key: string]: string;
+  };
   surveyRound: string;
   equippedInstallations: {
     id: string;
