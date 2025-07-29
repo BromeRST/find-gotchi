@@ -9,7 +9,7 @@ import { ownerContractAddressesOnPolygon } from '../../lib';
 const KNOWN_CONTRACT_ADDRESSES = new Set([
   // Polygon contract addresses
   polygonAddresses.realmDiamond.toLowerCase(),
-  polygonAddresses.installationsDiamond.toLowerCase(),
+  polygonAddresses.installationDiamond.toLowerCase(),
   polygonAddresses.tilesDiamond.toLowerCase(),
   polygonAddresses.aavegotchiDiamond.toLowerCase(),
   polygonAddresses.wearableDiamond.toLowerCase(),
@@ -19,17 +19,29 @@ const KNOWN_CONTRACT_ADDRESSES = new Set([
   polygonAddresses.fakeCardsDiamond.toLowerCase(),
   polygonAddresses.maticBurnAddress.toLowerCase(),
 
+  // Base contract addresses
+  // baseAddresses.realmDiamond.toLowerCase(),
+  // baseAddresses.installationDiamond.toLowerCase(),
+  // baseAddresses.tilesDiamond.toLowerCase(),
+  // baseAddresses.aavegotchiDiamond.toLowerCase(),
+  // baseAddresses.wearableDiamond.toLowerCase(),
+  // baseAddresses.forgeDiamond.toLowerCase(),
+  // // baseAddresses.gbmDiamond.toLowerCase(),
+  // baseAddresses.fakeGotchisNFT.toLowerCase(),
+  // baseAddresses.fakeCardsDiamond.toLowerCase(),
+  // baseAddresses.guardianSkinsDiamond.toLowerCase(),
+
   // Base Sepolia contract addresses
-  baseAddresses.realmDiamond.toLowerCase(),
-  baseAddresses.installationsDiamond.toLowerCase(),
-  baseAddresses.tilesDiamond.toLowerCase(),
-  baseAddresses.aavegotchiDiamond.toLowerCase(),
-  baseAddresses.wearableDiamond.toLowerCase(),
-  baseAddresses.forgeDiamond.toLowerCase(),
-  // baseAddresses.gbmDiamond.toLowerCase(),
-  baseAddresses.fakeGotchisNFT.toLowerCase(),
-  baseAddresses.fakeCardsDiamond.toLowerCase(),
-  baseAddresses.guardianSkinsDiamond.toLowerCase(),
+  baseSepoliaAddresses.realmDiamond.toLowerCase(),
+  baseSepoliaAddresses.installationDiamond.toLowerCase(),
+  baseSepoliaAddresses.tileDiamond.toLowerCase(),
+  baseSepoliaAddresses.aavegotchiDiamond.toLowerCase(),
+  baseSepoliaAddresses.wearableDiamond.toLowerCase(),
+  baseSepoliaAddresses.forgeDiamond.toLowerCase(),
+  baseSepoliaAddresses.gbmDiamond.toLowerCase(),
+  baseSepoliaAddresses.fakeGotchisNFT.toLowerCase(),
+  baseSepoliaAddresses.fakeCardsDiamond.toLowerCase(),
+  baseSepoliaAddresses.guardianSkinsDiamond.toLowerCase(),
 
   // Common addresses
   '0x000000000000000000000000000000000000dead', // burn address
@@ -50,6 +62,8 @@ function getAlchemyNetwork(chainName: string): Network {
       return Network.MATIC_MAINNET;
     case 'base':
       return Network.BASE_MAINNET;
+    case 'base sepolia':
+      return Network.BASE_SEPOLIA;
     default:
       throw new Error(`Unsupported chain: ${chainName}`);
   }
@@ -119,7 +133,9 @@ export async function fetchOwnersForContract(
         const convertedOwners: Owner[] = response.owners.map((owner: any) => ({
           ownerAddress: owner.ownerAddress,
           tokenBalances: owner.tokenBalances.map((balance: any) => ({
-            tokenId: balance.tokenId,
+            tokenId: balance.tokenId.startsWith('0x')
+              ? parseInt(balance.tokenId, 16).toString()
+              : balance.tokenId,
             balance: parseInt(balance.balance, 10),
           })),
         }));

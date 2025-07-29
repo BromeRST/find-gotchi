@@ -1,6 +1,6 @@
 import { CollectionConfig, ComparisonResult } from './types';
 import dotenv from 'dotenv';
-import { baseAddresses } from './chainAddresses';
+import { baseAddresses, baseSepoliaAddresses } from './chainAddresses';
 import { polygonAddresses } from './chainAddresses';
 import path from 'path';
 import chalk from 'chalk';
@@ -10,7 +10,12 @@ import fs from 'fs/promises';
 dotenv.config();
 
 // Configuration - Can be overridden by environment variables for multi-collection runs
-export function getCollectionConfig(): CollectionConfig {
+export function getCollectionConfig(network?: 'base' | 'basesepolia'): CollectionConfig {
+  // Determine network from parameter, environment variable, or default
+  const selectedNetwork = network || (process.env.NETWORK as 'base' | 'basesepolia') || 'base';
+  const networkName = selectedNetwork === 'basesepolia' ? 'Base Sepolia' : 'Base';
+  const networkDisplayName = process.env.BASE_NETWORK_NAME || networkName;
+
   // Check if running from multi-collection script (has environment variables set)
   if (process.env.COLLECTION_NAME && process.env.POLYGON_CONTRACT && process.env.BASE_CONTRACT) {
     const config: CollectionConfig = {
@@ -26,7 +31,7 @@ export function getCollectionConfig(): CollectionConfig {
           blockNumber: process.env.POLYGON_BLOCK || undefined,
         },
         {
-          name: 'Base',
+          name: networkDisplayName,
           contractAddress: process.env.BASE_CONTRACT,
           maxRequests: 100,
           requestDelay: 100,
@@ -46,6 +51,9 @@ export function getCollectionConfig(): CollectionConfig {
     return config;
   }
 
+  // Select appropriate addresses based on network
+  const networkAddresses = selectedNetwork === 'basesepolia' ? baseSepoliaAddresses : baseAddresses;
+
   // Default configuration for single collection runs
   return {
     name: 'Installations',
@@ -53,15 +61,15 @@ export function getCollectionConfig(): CollectionConfig {
     chains: [
       {
         name: 'Polygon',
-        contractAddress: polygonAddresses.installationsDiamond,
+        contractAddress: polygonAddresses.installationDiamond,
         maxRequests: 100,
         requestDelay: 100,
         enabled: true,
         blockNumber: '72386800',
       },
       {
-        name: 'Base',
-        contractAddress: baseAddresses.installationsDiamond,
+        name: networkName,
+        contractAddress: networkAddresses.installationDiamond,
         maxRequests: 100,
         requestDelay: 100,
         enabled: true,

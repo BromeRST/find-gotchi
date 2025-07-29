@@ -5,7 +5,33 @@ import { compareOwnershipData } from './lib/comparison';
 import { printResults } from './lib/printers';
 import { getCollectionConfig, saveResults } from './lib/utils';
 
-const COLLECTION_CONFIG = getCollectionConfig();
+// Parse command line arguments
+function parseArguments(): 'base' | 'basesepolia' | undefined {
+  const args = process.argv.slice(2);
+  const networkArg = args.find(arg => arg.startsWith('--network='));
+
+  if (networkArg) {
+    const network = networkArg.split('=')[1];
+    if (network === 'base' || network === 'basesepolia') {
+      return network;
+    } else {
+      console.error(
+        chalk.red.bold(`❌ Invalid network: ${network}. Must be 'base' or 'basesepolia'`)
+      );
+      process.exit(1);
+    }
+  }
+
+  // Check for standalone network arguments
+  if (args.includes('--base')) return 'base';
+  if (args.includes('--basesepolia')) return 'basesepolia';
+
+  // Return undefined to use environment or default config
+  return undefined;
+}
+
+const network = parseArguments();
+const COLLECTION_CONFIG = getCollectionConfig(network);
 
 async function main(): Promise<void> {
   try {

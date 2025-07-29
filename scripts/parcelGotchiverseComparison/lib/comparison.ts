@@ -103,7 +103,7 @@ async function verifyInstallationsOnChain(
       process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'
     );
     const installationContract = new ethers.Contract(
-      polygonAddresses.installationsDiamond,
+      polygonAddresses.installationDiamond,
       installationsAbi,
       provider
     );
