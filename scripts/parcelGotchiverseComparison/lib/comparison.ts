@@ -54,6 +54,44 @@ function compareValues(value1: any, value2: any): boolean {
   return JSON.stringify(norm1) === JSON.stringify(norm2);
 }
 
+// Retry function with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000,
+  context: string = 'operation'
+): Promise<T> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+
+      if (attempt === maxRetries) {
+        console.error(
+          chalk.red(`❌ ${context} failed after ${maxRetries} attempts:`),
+          lastError.message
+        );
+        throw lastError;
+      }
+
+      const delay = baseDelay * Math.pow(2, attempt - 1);
+      console.log(
+        chalk.yellow(
+          `⚠️  ${context} failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`
+        )
+      );
+      console.log(chalk.gray(`   Error: ${lastError.message}`));
+
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError!;
+}
+
 // Contract verification function for installations
 async function verifyInstallationsOnChain(
   parcelId: string,
@@ -72,11 +110,17 @@ async function verifyInstallationsOnChain(
 
     console.log(chalk.gray(`🔍 Verifying installations on-chain for parcel ${parcelId}...`));
 
-    // Call contract to get actual installations for this parcel
-    const contractResult = await installationContract.installationBalancesOfToken(
-      polygonAddresses.realmDiamond,
-      parcelId,
-      { blockTag: 73121283 } // Historical block number for consistency
+    // Call contract to get actual installations for this parcel with retry logic
+    const contractResult = await retryWithBackoff(
+      () =>
+        installationContract.installationBalancesOfToken(
+          polygonAddresses.realmDiamond,
+          parcelId,
+          { blockTag: 73121283 } // Historical block number for consistency
+        ),
+      3,
+      1000,
+      `Installation contract call for parcel ${parcelId}`
     );
 
     // Extract installation IDs that exist on-chain
@@ -107,8 +151,12 @@ async function verifyInstallationsOnChain(
     return verifiedInstallations;
   } catch (error) {
     console.error(
-      chalk.red(`❌ Error verifying installations on-chain for parcel ${parcelId}:`),
-      error
+      chalk.red(
+        `❌ Failed to verify installations on-chain for parcel ${parcelId} after all retries`
+      )
+    );
+    console.error(
+      chalk.gray(`   Final error: ${error instanceof Error ? error.message : String(error)}`)
     );
     return []; // Return empty array on error, treat as no verification
   }
@@ -128,20 +176,35 @@ async function verifyTilesOnChain(
 
     console.log(chalk.gray(`🔍 Verifying tiles on-chain for parcel ${parcelId}...`));
 
-    // Call contract to get actual tiles for this parcel
-    const contractResult = await tileContract.tileBalancesOfToken(
-      polygonAddresses.realmDiamond,
-      parcelId,
-      { blockTag: 73121283 } // Historical block number for consistency
+    // Call contract to get actual tiles for this parcel with retry logic
+    const contractResult = await retryWithBackoff(
+      () =>
+        tileContract.tileBalancesOfToken(
+          polygonAddresses.realmDiamond,
+          parcelId,
+          { blockTag: 73121283 } // Historical block number for consistency
+        ),
+      3,
+      1000,
+      `Tile contract call for parcel ${parcelId}`
     );
 
     // Extract tile IDs that exist on-chain
     const onChainTileIds = new Set();
+    console.log(
+      chalk.gray(`📊 Contract returned ${contractResult.length} tiles for parcel ${parcelId}`)
+    );
     for (const item of contractResult) {
       if (item.balance && item.balance.toString() !== '0') {
         onChainTileIds.add(item.tileId.toString());
+        console.log(
+          chalk.gray(`   Tile ${item.tileId.toString()} has balance ${item.balance.toString()}`)
+        );
       }
     }
+    console.log(
+      chalk.gray(`🎯 Found ${onChainTileIds.size} tiles with non-zero balances on-chain`)
+    );
 
     // Check which tiles from subgraph2 actually exist on-chain
     const verifiedTiles: string[] = [];
@@ -156,7 +219,12 @@ async function verifyTilesOnChain(
 
     return verifiedTiles;
   } catch (error) {
-    console.error(chalk.red(`❌ Error verifying tiles on-chain for parcel ${parcelId}:`), error);
+    console.error(
+      chalk.red(`❌ Failed to verify tiles on-chain for parcel ${parcelId} after all retries`)
+    );
+    console.error(
+      chalk.gray(`   Final error: ${error instanceof Error ? error.message : String(error)}`)
+    );
     return []; // Return empty array on error, treat as no verification
   }
 }
@@ -237,7 +305,12 @@ async function createArrayDiffWithVerification(
   const norm2 = normalizeValue(array2);
 
   // For arrays of objects with id field, show differences including modified items
-  if (array1.length > 0 && typeof array1[0] === 'object' && array1[0].id !== undefined) {
+  // Check both arrays to determine if we're dealing with objects that have id fields
+  const hasObjectsWithId =
+    (array1.length > 0 && typeof array1[0] === 'object' && array1[0].id !== undefined) ||
+    (array2.length > 0 && typeof array2[0] === 'object' && array2[0].id !== undefined);
+
+  if (hasObjectsWithId) {
     const ids1 = new Set(norm1.map((item: any) => item.id));
     const ids2 = new Set(norm2.map((item: any) => item.id));
 
@@ -473,6 +546,7 @@ export async function compareMetadata(
   console.log(chalk.blue('🔍 Starting parcel gotchiverse metadata comparison...'));
 
   const allIds = new Set([...subgraph1Data.keys(), ...subgraph2Data.keys()]);
+
   const discrepanciesByToken: { [tokenId: string]: ParcelDiscrepancy[] } = {};
   const discrepanciesByField: { [fieldName: string]: number } = {};
 

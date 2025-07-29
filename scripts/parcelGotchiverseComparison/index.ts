@@ -30,7 +30,7 @@ function getChainConfigs(): ChainConfig[] {
     },
     {
       name: 'Base Sepolia Gotchiverse',
-      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/gotchiverse-baseSepolia/version/baseSepolia-test-contracts-19/api`,
+      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/gotchiverse-baseSepolia/version/baseSepolia-test-contracts-24/api`,
     },
   ];
 }
@@ -120,6 +120,7 @@ function printSummary(result: ComparisonResult): void {
 
 async function main(): Promise<void> {
   try {
+    console.log('🔧 DEBUG: Script starting - main() function called');
     console.log(chalk.blue.bold('🚀 Starting Parcel Gotchiverse Comparison'));
     console.log(
       chalk.gray('This script compares parcel gotchiverse metadata between two subgraphs\n')

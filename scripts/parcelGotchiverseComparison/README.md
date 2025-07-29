@@ -21,7 +21,7 @@ The script fetches parcel data from two different gotchiverse subgraphs and perf
 - **Missing Entity Detection**: Identifies parcels that exist on one subgraph but not the other
 - **On-Chain Contract Verification**: For installations and tiles found only in subgraph2, verifies against the actual on-chain contracts to prevent false positives
 - **Pagination Support**: Efficiently handles large datasets using ID-based pagination
-- **Retry Logic**: Robust error handling with exponential backoff
+- **Retry Logic**: Robust error handling with exponential backoff for subgraph queries and contract verification calls
 - **Detailed Reporting**: Generates comprehensive reports with statistics and examples
 - **JSON Output**: Saves detailed results to timestamped JSON files
 - **Smart Array Comparison**: Handles nested objects and arrays (installations, tiles, alchemica) with contract verification for on-chain validation
@@ -65,6 +65,17 @@ The verification process for tiles:
 4. **Filtering**: Removes verified tiles from the discrepancy report
 
 This ensures that discrepancies only reflect actual data inconsistencies, not cases where subgraph2 has more complete data than subgraph1.
+
+### Retry Logic for Contract Calls
+
+Both installation and tile verification include robust retry logic:
+
+- **Max Retries**: 3 attempts per contract call
+- **Exponential Backoff**: Delays increase as 1s, 2s, 4s between retries
+- **Error Handling**: Detailed logging of retry attempts and final errors
+- **Graceful Degradation**: Falls back to reporting discrepancies if contract verification fails
+
+This ensures reliable verification even when facing temporary RPC issues, rate limits, or network connectivity problems.
 
 ## Usage
 
