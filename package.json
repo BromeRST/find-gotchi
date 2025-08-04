@@ -30,6 +30,7 @@
     "compare-parcel-gotchiverse": "ts-node scripts/parcelGotchiverseComparison/index.ts",
     "compare-onchain-gotchi": "ts-node scripts/onChainGotchiComparison/index.ts",
     "compare-onchain-gotchi-all": "ts-node scripts/onChainGotchiComparison/index.ts all",
+    "verify-base-balances": "ts-node scripts/baseBalanceVerification/index.ts",
     "fetch-aavegotchi-data": "ts-node scripts/fetchAavegotchiData.ts"
   },
   "dependencies": {

@@ -474,7 +474,7 @@ async function compareParcelMetadata(
     'size',
     'tokenId',
     'remainingAlchemica',
-    // 'totalAlchemicaClaimed',
+    'totalAlchemicaClaimed',
     'surveyRound',
     'equippedInstallations',
     'equippedTiles',

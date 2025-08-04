@@ -30,7 +30,7 @@ function getChainConfigs(): ChainConfig[] {
     },
     {
       name: 'Base Sepolia Gotchiverse',
-      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/gotchiverse-baseSepolia/version/baseSepolia-test-contracts-24/api`,
+      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/gotchiverse-baseSepolia/version/baseSepolia-test-contracts-25/api`,
     },
   ];
 }
