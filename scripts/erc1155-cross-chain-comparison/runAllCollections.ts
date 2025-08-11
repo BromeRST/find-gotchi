@@ -27,7 +27,8 @@ const COLLECTIONS: CollectionDefinition[] = [
     baseSepoliaAddress: baseSepoliaAddresses.installationDiamond,
     polygonAddress: polygonAddresses.installationDiamond,
     blockNumber: {
-      polygon: '73121283', // You can set specific block numbers for each collection
+      // polygon: '73121283', // You can set specific block numbers for each collection
+      polygon: '74905712', // vs Base: 74905712
       // base: '12345678', // Uncomment and set if needed
       // basesepolia: '12345678', // Uncomment and set if needed
     },
@@ -38,7 +39,8 @@ const COLLECTIONS: CollectionDefinition[] = [
     baseSepoliaAddress: baseSepoliaAddresses.tileDiamond,
     polygonAddress: polygonAddresses.tilesDiamond,
     blockNumber: {
-      polygon: '73121283', // You can set specific block numbers for each collection
+      // polygon: '73121283', // You can set specific block numbers for each collection
+      polygon: '74905712', // vs Base: 74905712
       // base: '12345678', // Uncomment and set if needed
       // basesepolia: '12345678', // Uncomment and set if needed
     },

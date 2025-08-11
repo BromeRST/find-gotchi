@@ -324,7 +324,7 @@ async function createArrayDiffWithVerification(
     if (fieldName === 'equippedInstallations' && onlyInSubgraph2.length > 0) {
       console.log(
         chalk.yellow(
-          `⚠️  Found ${onlyInSubgraph2.length} installations only in subgraph2 for parcel ${parcelId}`
+          `⚠️  Found ${onlyInSubgraph2.length} installations only in subgraph2 (Base) for parcel ${parcelId}`
         )
       );
 
@@ -353,7 +353,7 @@ async function createArrayDiffWithVerification(
     } else if (fieldName === 'equippedTiles' && onlyInSubgraph2.length > 0) {
       console.log(
         chalk.yellow(
-          `⚠️  Found ${onlyInSubgraph2.length} tiles only in subgraph2 for parcel ${parcelId}`
+          `⚠️  Found ${onlyInSubgraph2.length} tiles only in subgraph2 (Base) for parcel ${parcelId}`
         )
       );
 

@@ -44,7 +44,7 @@ POLYGON_RPC_URL=https://your-polygon-rpc-url  # Optional, for contract verificat
 
 ## Contract Verification
 
-When the script finds installations or tiles that exist only in subgraph2 (Base Sepolia), it performs on-chain contract verification to determine if these items actually exist on the Polygon network. This prevents false positives where subgraph2 has correct data but subgraph1 is missing it.
+When the script finds installations or tiles that exist only in subgraph2 (Base), it performs on-chain contract verification to determine if these items actually exist on the Polygon network. This prevents false positives where subgraph2 has correct data but subgraph1 is missing it.
 
 ### Installation Verification
 
@@ -160,7 +160,7 @@ The script provides:
 🚀 Starting Parcel Gotchiverse Comparison
 This script compares parcel gotchiverse metadata between two subgraphs
 
-Configured chains: Polygon Gotchiverse, Base Sepolia Gotchiverse
+Configured chains: Polygon Gotchiverse, Base Gotchiverse
 
 📡 Fetching data from subgraphs...
 🔍 Fetching parcels from Polygon Gotchiverse...
@@ -170,13 +170,13 @@ Configured chains: Polygon Gotchiverse, Base Sepolia Gotchiverse
 
 ✅ Data fetching completed:
   • Polygon Gotchiverse: 50000 parcels
-  • Base Sepolia Gotchiverse: 49950 parcels
+  • Base Gotchiverse: 49950 parcels
 
 🔍 Starting parcel gotchiverse metadata comparison...
 Comparing 50000 unique parcels...
 ✅ Parcel gotchiverse metadata comparison completed
 📊 Results: 49900 identical, 100 discrepant
-📊 Missing: 50 on Polygon Gotchiverse, 0 on Base Sepolia Gotchiverse
+📊 Missing: 50 on Polygon Gotchiverse, 0 on Base Gotchiverse
 
 💾 Results saved to: results/parcel-gotchiverse-comparison-2024-01-15T10-30-00-000Z.json
 
@@ -192,7 +192,7 @@ Comparing 50000 unique parcels...
 
 🔍 Missing Data:
   • Missing on Polygon: 50
-  • Missing on Base Sepolia: 0
+  • Missing on Base: 0
 
 📋 Discrepancies by Field:
   • equippedInstallations: 45 discrepancies
@@ -248,7 +248,7 @@ Comparison completed at: 2024-01-15T10:30:00.000Z
 The script is configured to compare:
 
 - **Polygon Gotchiverse**: `aavegotchi-gotchiverse-matic`
-- **Base Sepolia Gotchiverse**: `aavegotchi-gotchiverse-baseSepolia`
+- **Base Gotchiverse**: `aavegotchi-gotchiverse-base`
 
 To modify the subgraph endpoints, edit the `getChainConfigs()` function in `index.ts`.
 

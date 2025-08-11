@@ -109,7 +109,7 @@ The script provides:
 🚀 Starting Parcel Core Comparison
 This script compares parcel core metadata between two subgraphs
 
-Configured chains: Polygon, Base Sepolia
+Configured chains: Polygon, Base
 
 📡 Fetching data from subgraphs...
 🔍 Fetching parcels from Polygon...
@@ -119,13 +119,13 @@ Configured chains: Polygon, Base Sepolia
 
 ✅ Data fetching completed:
   • Polygon: 50000 parcels
-  • Base Sepolia: 49950 parcels
+  • Base: 49950 parcels
 
 🔍 Starting parcel metadata comparison...
 Comparing 50000 unique parcels...
 ✅ Parcel metadata comparison completed
 📊 Results: 49900 identical, 100 discrepant
-📊 Missing: 50 on Polygon, 0 on Base Sepolia
+📊 Missing: 50 on Polygon, 0 on Base
 
 💾 Results saved to: results/parcel-core-comparison-2024-01-15T10-30-00-000Z.json
 
@@ -141,7 +141,7 @@ Comparing 50000 unique parcels...
 
 🔍 Missing Data:
   • Missing on Polygon: 50
-  • Missing on Base Sepolia: 0
+  • Missing on Base: 0
 
 📋 Discrepancies by Field:
   • coordinateX: 45 discrepancies
@@ -197,7 +197,7 @@ Comparison completed at: 2024-01-15T10:30:00.000Z
 The script is configured to compare:
 
 - **Polygon**: `aavegotchi-core-matic`
-- **Base Sepolia**: `aavegotchi-core-baseSepolia`
+- **Base**: `aavegotchi-core-base`
 
 To modify the subgraph endpoints, edit the `getChainConfigs()` function in `index.ts`.
 

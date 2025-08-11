@@ -26,11 +26,11 @@ function getChainConfigs(): ChainConfig[] {
     {
       name: 'Polygon Gotchiverse',
       endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/gotchiverse-matic/api`,
-      blockNumber: 73121283,
+      blockNumber: 74905712,
     },
     {
-      name: 'Base Sepolia Gotchiverse',
-      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/gotchiverse-baseSepolia/version/baseSepolia-test-contracts-25/api`,
+      name: 'Base Gotchiverse',
+      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/gotchiverse-base/api`,
     },
   ];
 }
@@ -59,9 +59,7 @@ function printSummary(result: ComparisonResult): void {
 
   console.log(chalk.cyan('\n🔍 Missing Data:'));
   console.log(`  • Missing on Polygon: ${chalk.red.bold(result.summary.missingSubgraph1Count)}`);
-  console.log(
-    `  • Missing on Base Sepolia: ${chalk.red.bold(result.summary.missingSubgraph2Count)}`
-  );
+  console.log(`  • Missing on Base: ${chalk.red.bold(result.summary.missingSubgraph2Count)}`);
 
   if (Object.keys(result.summary.discrepanciesByField).length > 0) {
     console.log(chalk.cyan('\n📋 Discrepancies by Field:'));

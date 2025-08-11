@@ -20,16 +20,16 @@ const KNOWN_CONTRACT_ADDRESSES = new Set([
   polygonAddresses.maticBurnAddress.toLowerCase(),
 
   // Base contract addresses
-  // baseAddresses.realmDiamond.toLowerCase(),
-  // baseAddresses.installationDiamond.toLowerCase(),
-  // baseAddresses.tilesDiamond.toLowerCase(),
-  // baseAddresses.aavegotchiDiamond.toLowerCase(),
-  // baseAddresses.wearableDiamond.toLowerCase(),
-  // baseAddresses.forgeDiamond.toLowerCase(),
-  // // baseAddresses.gbmDiamond.toLowerCase(),
-  // baseAddresses.fakeGotchisNFT.toLowerCase(),
-  // baseAddresses.fakeCardsDiamond.toLowerCase(),
-  // baseAddresses.guardianSkinsDiamond.toLowerCase(),
+  baseAddresses.realmDiamond.toLowerCase(),
+  baseAddresses.installationDiamond.toLowerCase(),
+  baseAddresses.tilesDiamond.toLowerCase(),
+  baseAddresses.aavegotchiDiamond.toLowerCase(),
+  baseAddresses.wearableDiamond.toLowerCase(),
+  baseAddresses.forgeDiamond.toLowerCase(),
+  // baseAddresses.gbmDiamond.toLowerCase(),
+  baseAddresses.fakeGotchisNFT.toLowerCase(),
+  baseAddresses.fakeCardsDiamond.toLowerCase(),
+  baseAddresses.guardianSkinsDiamond.toLowerCase(),
 
   // Base Sepolia contract addresses
   baseSepoliaAddresses.realmDiamond.toLowerCase(),
