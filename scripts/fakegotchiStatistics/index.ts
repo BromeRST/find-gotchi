@@ -22,8 +22,8 @@ function getChainConfigs(): ChainConfig[] {
       blockNumber: 73121283,
     },
     {
-      name: 'Base Sepolia',
-      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-baseSepolia/version/baseSepolia-test-mints-33/api`,
+      name: 'Base',
+      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-base/api`,
     },
   ];
 }

@@ -2,8 +2,8 @@ import chalk from 'chalk';
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
 import path from 'path';
-import { ChainConfig, ComparisonResult, CoreParcelInfo } from './lib/types';
-import { fetchAllParcels } from './lib/fetchers';
+import { ChainConfig, ComparisonResult, TileInfo } from './lib/types';
+import { fetchAllTiles } from './lib/fetchers';
 import { compareMetadata } from './lib/comparison';
 
 dotenv.config();
@@ -17,13 +17,13 @@ function validateEnvironment(): void {
 function getChainConfigs(): ChainConfig[] {
   return [
     {
-      name: 'Polygon',
-      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-matic/api`,
+      name: 'Polygon Gotchiverse',
+      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/gotchiverse-matic/api`,
       blockNumber: 74905712,
     },
     {
-      name: 'Base',
-      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-base/api`,
+      name: 'Base Gotchiverse',
+      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/gotchiverse-base/version/base-realm-5/api`,
     },
   ];
 }
@@ -33,7 +33,7 @@ async function saveResults(result: ComparisonResult): Promise<void> {
   await fs.mkdir(resultsDir, { recursive: true });
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filename = path.join(resultsDir, `parcel-core-comparison-${timestamp}.json`);
+  const filename = path.join(resultsDir, `tiles-comparison-${timestamp}.json`);
 
   await fs.writeFile(filename, JSON.stringify(result, null, 2));
   console.log(chalk.green(`💾 Results saved to: ${filename}`));
@@ -41,11 +41,11 @@ async function saveResults(result: ComparisonResult): Promise<void> {
 
 function printSummary(result: ComparisonResult): void {
   console.log('\n' + chalk.blue('='.repeat(80)));
-  console.log(chalk.blue.bold('📊 PARCEL CORE COMPARISON SUMMARY'));
+  console.log(chalk.blue.bold('📊 EQUIPPED TILES COMPARISON SUMMARY'));
   console.log(chalk.blue('='.repeat(80)));
 
   console.log(chalk.cyan('\n📈 Overview:'));
-  console.log(`  • Total parcels compared: ${chalk.white.bold(result.totalCompared)}`);
+  console.log(`  • Total tiles compared: ${chalk.white.bold(result.totalCompared)}`);
   console.log(`  • Identical: ${chalk.green.bold(result.summary.identicalCount)}`);
   console.log(`  • Discrepant: ${chalk.yellow.bold(result.summary.discrepantCount)}`);
   console.log(`  • Total discrepancies: ${chalk.red.bold(result.totalDiscrepancies)}`);
@@ -77,7 +77,7 @@ function printSummary(result: ComparisonResult): void {
 
     sampleTokens.forEach(tokenId => {
       const discrepancies = result.discrepanciesByToken[tokenId];
-      console.log(`  • Parcel ${chalk.white.bold(tokenId)}: ${discrepancies.length} discrepancies`);
+      console.log(`  • Tile ${chalk.white.bold(tokenId)}: ${discrepancies.length} discrepancies`);
 
       discrepancies.slice(0, 2).forEach(discrepancy => {
         const type = discrepancy.discrepancyType === 'value_mismatch' ? '≠' : '?';
@@ -92,7 +92,7 @@ function printSummary(result: ComparisonResult): void {
     });
 
     if (result.summary.discrepantCount > 5) {
-      console.log(`  ... and ${result.summary.discrepantCount - 5} more discrepant parcels`);
+      console.log(`  ... and ${result.summary.discrepantCount - 5} more discrepant tiles`);
     }
   }
 
@@ -102,7 +102,9 @@ function printSummary(result: ComparisonResult): void {
       : '0.00';
 
   console.log(chalk.cyan('\n✨ Data Accuracy:'));
-  console.log(`  • ${chalk.green.bold(accuracy + '%')} of parcels are identical between subgraphs`);
+  console.log(
+    `  • ${chalk.green.bold(accuracy + '%')} of equipped tiles are identical between subgraphs`
+  );
 
   console.log(chalk.blue('\n' + '='.repeat(80)));
   console.log(chalk.gray(`Comparison completed at: ${result.timestamp}`));
@@ -111,8 +113,9 @@ function printSummary(result: ComparisonResult): void {
 
 async function main(): Promise<void> {
   try {
-    console.log(chalk.blue.bold('🚀 Starting Parcel Core Comparison'));
-    console.log(chalk.gray('This script compares parcel core metadata between two subgraphs\n'));
+    console.log('🔧 DEBUG: Script starting - main() function called');
+    console.log(chalk.blue.bold('🚀 Starting Equipped Tiles Comparison'));
+    console.log(chalk.gray('This script compares equipped tiles metadata between two subgraphs\n'));
 
     // Validate environment
     validateEnvironment();
@@ -124,13 +127,13 @@ async function main(): Promise<void> {
     // Fetch data from both subgraphs in parallel
     console.log(chalk.blue('📡 Fetching data from subgraphs...'));
     const [subgraph1Data, subgraph2Data] = await Promise.all([
-      fetchAllParcels(chainConfigs[0]),
-      fetchAllParcels(chainConfigs[1]),
+      fetchAllTiles(chainConfigs[0]),
+      fetchAllTiles(chainConfigs[1]),
     ]);
 
     console.log(chalk.green(`\n✅ Data fetching completed:`));
-    console.log(`  • ${chainConfigs[0].name}: ${subgraph1Data.size} parcels`);
-    console.log(`  • ${chainConfigs[1].name}: ${subgraph2Data.size} parcels\n`);
+    console.log(`  • ${chainConfigs[0].name}: ${subgraph1Data.size} equipped tiles`);
+    console.log(`  • ${chainConfigs[1].name}: ${subgraph2Data.size} equipped tiles\n`);
 
     // Compare metadata
     const comparisonResult = await compareMetadata(
@@ -148,10 +151,12 @@ async function main(): Promise<void> {
 
     // Exit with appropriate code
     if (comparisonResult.totalDiscrepancies === 0) {
-      console.log(chalk.green.bold('🎉 All parcel metadata is identical between subgraphs!'));
+      console.log(
+        chalk.green.bold('🎉 All equipped tiles metadata is identical between subgraphs!')
+      );
       process.exit(0);
     } else {
-      console.log(chalk.yellow.bold('⚠️  Found discrepancies in parcel metadata.'));
+      console.log(chalk.yellow.bold('⚠️  Found discrepancies in equipped tiles metadata.'));
       process.exit(1);
     }
   } catch (error) {

@@ -28,6 +28,8 @@
     "compare-fakegotchi-statistics": "ts-node scripts/fakegotchiStatistics/index.ts",
     "compare-parcel-core": "ts-node scripts/parcelCoreComparison/index.ts",
     "compare-parcel-gotchiverse": "ts-node scripts/parcelGotchiverseComparison/index.ts",
+    "compare-tiles": "ts-node scripts/tilesComparison/index.ts",
+    "compare-installations": "ts-node scripts/installationsComparison/index.ts",
     "compare-onchain-gotchi": "ts-node scripts/onChainGotchiComparison/index.ts",
     "compare-onchain-gotchi-all": "ts-node scripts/onChainGotchiComparison/index.ts all",
     "verify-base-balances": "ts-node scripts/baseBalanceVerification/index.ts",

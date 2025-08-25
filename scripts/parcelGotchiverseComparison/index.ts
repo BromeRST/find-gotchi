@@ -30,7 +30,7 @@ function getChainConfigs(): ChainConfig[] {
     },
     {
       name: 'Base Gotchiverse',
-      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/gotchiverse-base/api`,
+      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/gotchiverse-base/version/base-realm-5/api`,
     },
   ];
 }

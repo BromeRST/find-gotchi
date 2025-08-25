@@ -1,0 +1,31 @@
+# Ignore all files in results directory except for the directory itself
+results/*
+
+# But keep the results directory structure
+!results/.gitkeep
+
+# Ignore temporary files
+*.tmp
+*.temp
+
+# Ignore backup files
+*.bak
+*.backup
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore editor-specific files
+.vscode/
+*.swp
+*.swo
+*~
+
+# Ignore log files
+*.log
+
+# Ignore environment files (should be in project root)
+.env
+.env.local
+.env.production

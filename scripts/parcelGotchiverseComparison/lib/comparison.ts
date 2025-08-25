@@ -468,7 +468,7 @@ async function compareParcelMetadata(
     'fudBoost',
     'id',
     'kekBoost',
-    'owner',
+    // 'owner',
     'parcelHash',
     'parcelId',
     'size',

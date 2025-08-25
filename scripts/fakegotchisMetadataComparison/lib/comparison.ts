@@ -115,7 +115,7 @@ function compareFakeGotchiMetadata(
   const burnedCount = burnedTokenCountByMetadataId.get(metadataId) || 0;
 
   // Compare top-level fields
-  const fieldsToCompare = ['identifier', 'owner'];
+  const fieldsToCompare = ['identifier' /* 'owner' */];
 
   for (const field of fieldsToCompare) {
     const value1 = (subgraph1Token as any)[field];

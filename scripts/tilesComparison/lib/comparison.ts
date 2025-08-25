@@ -1,15 +1,5 @@
 import chalk from 'chalk';
-import { CoreParcelInfo, ParcelDiscrepancy, ComparisonResult } from './types';
-import { ownerContractAddressesOnPolygon } from '../../lib';
-
-function isPolygonContractAddress(ownerValue: any): boolean {
-  if (!ownerValue || typeof ownerValue !== 'object' || !ownerValue.id) {
-    return false;
-  }
-
-  const ownerId = ownerValue.id.toLowerCase();
-  return ownerContractAddressesOnPolygon.some(address => address.toLowerCase() === ownerId);
-}
+import { TileInfo, TileDiscrepancy, ComparisonResult } from './types';
 
 function normalizeValue(value: any): any {
   if (value === null || value === undefined) {
@@ -22,7 +12,13 @@ function normalizeValue(value: any): any {
 
   if (typeof value === 'object' && value !== null) {
     if (Array.isArray(value)) {
-      return value.map(normalizeValue).sort();
+      return value.map(normalizeValue).sort((a, b) => {
+        // For objects, sort by id field if it exists
+        if (typeof a === 'object' && typeof b === 'object' && a.id && b.id) {
+          return a.id.localeCompare(b.id);
+        }
+        return JSON.stringify(a).localeCompare(JSON.stringify(b));
+      });
     }
 
     const normalized: any = {};
@@ -42,21 +38,21 @@ function compareValues(value1: any, value2: any): boolean {
   return JSON.stringify(norm1) === JSON.stringify(norm2);
 }
 
-function compareParcelMetadata(
-  parcelId: string,
-  subgraph1Parcel: CoreParcelInfo | undefined,
-  subgraph2Parcel: CoreParcelInfo | undefined
-): ParcelDiscrepancy[] {
-  const discrepancies: ParcelDiscrepancy[] = [];
+function compareTileMetadata(
+  tileId: string,
+  subgraph1Tile: TileInfo | undefined,
+  subgraph2Tile: TileInfo | undefined
+): TileDiscrepancy[] {
+  const discrepancies: TileDiscrepancy[] = [];
 
-  // Handle missing parcels
-  if (!subgraph1Parcel && !subgraph2Parcel) {
+  // Handle missing tiles
+  if (!subgraph1Tile && !subgraph2Tile) {
     return discrepancies; // Should not happen, but just in case
   }
 
-  if (!subgraph1Parcel) {
+  if (!subgraph1Tile) {
     discrepancies.push({
-      tokenId: parcelId,
+      tileId,
       field: 'existence',
       subgraph1Value: null,
       subgraph2Value: 'exists',
@@ -65,9 +61,9 @@ function compareParcelMetadata(
     return discrepancies;
   }
 
-  if (!subgraph2Parcel) {
+  if (!subgraph2Tile) {
     discrepancies.push({
-      tokenId: parcelId,
+      tileId,
       field: 'existence',
       subgraph1Value: 'exists',
       subgraph2Value: null,
@@ -76,44 +72,16 @@ function compareParcelMetadata(
     return discrepancies;
   }
 
-  // Compare all fields from CoreParcelInfo
-  const fieldsToCompare = [
-    'activeListing',
-    'alphaBoost',
-    'auctionId',
-    'coordinateY',
-    'coordinateX',
-    'district',
-    'fomoBoost',
-    'fudBoost',
-    'historicalPrices',
-    'id',
-    'kekBoost',
-    // 'owner',
-    'parcelHash',
-    'parcelId',
-    'size',
-    'timesTraded',
-    'tokenId',
-  ];
+  // Compare all fields from TileInfo
+  const fieldsToCompare = ['id', 'x', 'y', 'parcel', 'type'];
 
   for (const field of fieldsToCompare) {
-    const value1 = (subgraph1Parcel as any)[field];
-    const value2 = (subgraph2Parcel as any)[field];
+    const value1 = (subgraph1Tile as any)[field];
+    const value2 = (subgraph2Tile as any)[field];
 
     if (!compareValues(value1, value2)) {
-      // Skip owner discrepancies when subgraph1 (Polygon) owner is a known contract address
-      if (field === 'owner' && isPolygonContractAddress(value1)) {
-        console.log(
-          chalk.gray(
-            `⚠️  Skipping owner discrepancy for parcel ${parcelId}: Polygon owner ${value1?.id} is a known contract address`
-          )
-        );
-        continue;
-      }
-
       discrepancies.push({
-        tokenId: parcelId,
+        tileId,
         field,
         subgraph1Value: value1,
         subgraph2Value: value2,
@@ -126,15 +94,16 @@ function compareParcelMetadata(
 }
 
 export async function compareMetadata(
-  subgraph1Data: Map<string, CoreParcelInfo>,
-  subgraph2Data: Map<string, CoreParcelInfo>,
+  subgraph1Data: Map<string, TileInfo>,
+  subgraph2Data: Map<string, TileInfo>,
   subgraph1Name: string = 'Subgraph 1',
   subgraph2Name: string = 'Subgraph 2'
 ): Promise<ComparisonResult> {
-  console.log(chalk.blue('🔍 Starting parcel metadata comparison...'));
+  console.log(chalk.blue('🔍 Starting equipped tiles metadata comparison...'));
 
   const allIds = new Set([...subgraph1Data.keys(), ...subgraph2Data.keys()]);
-  const discrepanciesByToken: { [tokenId: string]: ParcelDiscrepancy[] } = {};
+
+  const discrepanciesByToken: { [tileId: string]: TileDiscrepancy[] } = {};
   const discrepanciesByField: { [fieldName: string]: number } = {};
 
   let totalDiscrepancies = 0;
@@ -143,31 +112,31 @@ export async function compareMetadata(
   const missingOnSubgraph1: string[] = [];
   const missingOnSubgraph2: string[] = [];
 
-  console.log(chalk.gray(`Comparing ${allIds.size} unique parcels...`));
+  console.log(chalk.gray(`Comparing ${allIds.size} unique equipped tiles...`));
 
-  for (const parcelId of allIds) {
-    const subgraph1Parcel = subgraph1Data.get(parcelId);
-    const subgraph2Parcel = subgraph2Data.get(parcelId);
+  for (const tileId of allIds) {
+    const subgraph1Tile = subgraph1Data.get(tileId);
+    const subgraph2Tile = subgraph2Data.get(tileId);
 
-    const parcelDiscrepancies = compareParcelMetadata(parcelId, subgraph1Parcel, subgraph2Parcel);
+    const tileDiscrepancies = compareTileMetadata(tileId, subgraph1Tile, subgraph2Tile);
 
-    if (parcelDiscrepancies.length > 0) {
-      discrepanciesByToken[parcelId] = parcelDiscrepancies;
+    if (tileDiscrepancies.length > 0) {
+      discrepanciesByToken[tileId] = tileDiscrepancies;
       discrepantCount++;
-      totalDiscrepancies += parcelDiscrepancies.length;
+      totalDiscrepancies += tileDiscrepancies.length;
 
-      // Track missing parcels
-      const missingDiscrepancy = parcelDiscrepancies.find(d => d.field === 'existence');
+      // Track missing tiles
+      const missingDiscrepancy = tileDiscrepancies.find(d => d.field === 'existence');
       if (missingDiscrepancy) {
         if (missingDiscrepancy.discrepancyType === 'missing_subgraph1') {
-          missingOnSubgraph1.push(parcelId);
+          missingOnSubgraph1.push(tileId);
         } else if (missingDiscrepancy.discrepancyType === 'missing_subgraph2') {
-          missingOnSubgraph2.push(parcelId);
+          missingOnSubgraph2.push(tileId);
         }
       }
 
       // Count discrepancies by field
-      parcelDiscrepancies.forEach(discrepancy => {
+      tileDiscrepancies.forEach(discrepancy => {
         discrepanciesByField[discrepancy.field] =
           (discrepanciesByField[discrepancy.field] || 0) + 1;
       });
@@ -192,7 +161,7 @@ export async function compareMetadata(
     discrepanciesByToken,
   };
 
-  console.log(chalk.green('✅ Parcel metadata comparison completed'));
+  console.log(chalk.green('✅ Equipped tiles metadata comparison completed'));
   console.log(chalk.gray(`📊 Results: ${identicalCount} identical, ${discrepantCount} discrepant`));
   console.log(
     chalk.gray(

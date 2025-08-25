@@ -23,7 +23,7 @@ function getChainConfigs(): ChainConfig[] {
     },
     {
       name: 'Base',
-      endpoint: `https://subgraph.satsuma-prod.com/${process.env.SUBGRAPH_KEY}/aavegotchi/aavegotchi-core-base/api`,
+      endpoint: `https://subgraph.satsuma-prod.com/tWYl5n5y04oz/aavegotchi/aavegotchi-core-base/version/base-debug-fgs-4/api`,
     },
   ];
 }
